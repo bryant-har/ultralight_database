@@ -1,7 +1,13 @@
 package common;
 
-import jdk.jshell.spi.ExecutionControl;
+import java.util.ArrayList;
+import jdk.jshell.spi.ExecutionControl.NotImplementedException;
+import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
 import operator.*;
 
 /**
@@ -29,8 +35,25 @@ public class QueryPlanBuilder {
    * @return the root of the query plan
    * @precondition stmt is a Select having a body that is a PlainSelect
    */
-  @SuppressWarnings("unchecked")
-  public Operator buildPlan(Statement stmt) throws ExecutionControl.NotImplementedException {
-    throw new ExecutionControl.NotImplementedException("");
+  public Operator buildPlan(Statement stmt) throws NotImplementedException {
+    if (!(stmt instanceof Select)) {
+      throw new IllegalArgumentException("Only SELECT statements are supported.");
+    }
+
+    Select select = (Select) stmt;
+    PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
+
+    FromItem fromItem = plainSelect.getFromItem();
+    Operator root;
+    DBCatalog dbCatalog = DBCatalog.getInstance();
+
+    if (fromItem instanceof Table) {
+      String tableName = ((Table) fromItem).getName();
+      ArrayList<Column> tableColumns = dbCatalog.getColumns(tableName);
+      root = new SelectOperator(tableColumns, tableName, plainSelect.getWhere());
+      return root;
+    } else {
+      throw new NotImplementedException("Only single table from items are supported.");
+    }
   }
 }

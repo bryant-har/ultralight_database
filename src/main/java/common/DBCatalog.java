@@ -78,4 +78,9 @@ public class DBCatalog {
   public File getFileForTable(String tableName) {
     return new File(dbDirectory + "/data/" + tableName);
   }
+
+  /** Gets the schema of a table */
+  public ArrayList<Column> getColumns(String tableName) {
+    return tables.get(tableName);
+  }
 }
