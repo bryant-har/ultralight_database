@@ -34,8 +34,7 @@ public class P1UnitTests {
 
     DBCatalog.getInstance().setDataDirectory(resourcePath.resolve("db").toString());
 
-    URI queriesFile =
-        Objects.requireNonNull(classLoader.getResource("samples/input/queries.sql")).toURI();
+    URI queriesFile = Objects.requireNonNull(classLoader.getResource("samples/input/queries.sql")).toURI();
 
     statements = CCJSqlParserUtil.parseStatements(Files.readString(Paths.get(queriesFile)));
     queryPlanBuilder = new QueryPlanBuilder();
@@ -289,5 +288,4 @@ public class P1UnitTests {
       Assertions.assertEquals(expectedTuple, actualTuple, "Unexpected tuple at index " + i);
     }
   }
-
 }

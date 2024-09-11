@@ -37,7 +37,7 @@ public class SelectOperator extends Operator {
     Tuple curr = scanner.getNextTuple();
     while (curr != null) {
       ExprVisitor exprVisitor = new ExprVisitor(curr, exprCtx);
-      if (expr != null) {      
+      if (expr != null) {
         expr.accept(exprVisitor);
       }
       if (exprVisitor.getResult()) {
