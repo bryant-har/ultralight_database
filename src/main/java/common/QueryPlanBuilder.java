@@ -7,14 +7,13 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.OrderByElement;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.OrderByElement;
 import operator.*;
 
 public class QueryPlanBuilder {
-  public QueryPlanBuilder() {
-  }
+  public QueryPlanBuilder() {}
 
   /**
    * Top level method to translate statement to query plan
@@ -27,6 +26,7 @@ public class QueryPlanBuilder {
     if (!(stmt instanceof Select)) {
       throw new IllegalArgumentException("Only SELECT statements are supported.");
     }
+
     Select select = (Select) stmt;
     PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
     FromItem fromItem = plainSelect.getFromItem();
@@ -40,8 +40,29 @@ public class QueryPlanBuilder {
 
       // Check for ORDER BY clause
       List<OrderByElement> orderByElements = plainSelect.getOrderByElements();
-      if (orderByElements != null && !orderByElements.isEmpty()) {
+      boolean hasOrderBy = orderByElements != null && !orderByElements.isEmpty();
+
+      // Check for DISTINCT clause
+      boolean isDistinct = plainSelect.getDistinct() != null;
+
+      // If DISTINCT is present and there's no ORDER BY, add a SortOperator
+      if (isDistinct && !hasOrderBy) {
+        // Create a default sort order based on all columns
+        orderByElements = new ArrayList<>();
+        for (Column col : tableColumns) {
+          OrderByElement orderByElement = new OrderByElement();
+          orderByElement.setExpression(col);
+          orderByElements.add(orderByElement);
+        }
         root = new SortOperator(tableColumns, root, orderByElements);
+      } else if (hasOrderBy) {
+        // If there's an ORDER BY clause, add the SortOperator
+        root = new SortOperator(tableColumns, root, orderByElements);
+      }
+
+      // If DISTINCT is present, add the DuplicateElementEliminationOperator
+      if (isDistinct) {
+        root = new DuplicateElementEliminationOperator(tableColumns, root);
       }
 
       return root;

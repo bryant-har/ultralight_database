@@ -6,9 +6,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import net.sf.jsqlparser.statement.select.OrderByElement;
-import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.statement.select.OrderByElement;
 
 public class SortOperator extends Operator {
   private final Operator childOperator;
@@ -17,7 +17,10 @@ public class SortOperator extends Operator {
   private List<Tuple> sortedTuples;
   private int currentIndex;
 
-  public SortOperator(ArrayList<Column> outputSchema, Operator childOperator, List<OrderByElement> orderByElements) {
+  public SortOperator(
+      ArrayList<Column> outputSchema,
+      Operator childOperator,
+      List<OrderByElement> orderByElements) {
     super(outputSchema);
     this.childOperator = childOperator;
     this.orderByElements = orderByElements;
