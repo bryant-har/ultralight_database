@@ -11,8 +11,8 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.OrderByElement;
 
 /**
- * SortOperator class implements sorting functionality for database operations.
- * It sorts tuples based on specified ORDER BY elements.
+ * SortOperator class implements sorting functionality for database operations. It sorts tuples
+ * based on specified ORDER BY elements.
  */
 public class SortOperator extends Operator {
   private final Operator childOperator;
@@ -23,9 +23,9 @@ public class SortOperator extends Operator {
 
   /**
    * Constructor for SortOperator.
-   * 
-   * @param outputSchema    The schema of the output tuples.
-   * @param childOperator   The child operator providing input tuples.
+   *
+   * @param outputSchema The schema of the output tuples.
+   * @param childOperator The child operator providing input tuples.
    * @param orderByElements The list of ORDER BY elements for sorting.
    */
   public SortOperator(
@@ -42,7 +42,7 @@ public class SortOperator extends Operator {
 
   /**
    * Retrieves the next tuple in the sorted order.
-   * 
+   *
    * @return The next Tuple, or null if no more tuples are available.
    */
   @Override
@@ -56,9 +56,7 @@ public class SortOperator extends Operator {
     return null;
   }
 
-  /**
-   * Buffers all tuples from the child operator and sorts them.
-   */
+  /** Buffers all tuples from the child operator and sorts them. */
   private void bufferAndSortTuples() {
     sortedTuples = new ArrayList<>();
     Tuple tuple;
@@ -69,8 +67,8 @@ public class SortOperator extends Operator {
   }
 
   /**
-   * Inner class implementing Comparator for Tuple objects.
-   * Used for sorting tuples based on ORDER BY elements.
+   * Inner class implementing Comparator for Tuple objects. Used for sorting tuples based on ORDER
+   * BY elements.
    */
   private class TupleComparator implements Comparator<Tuple> {
     @Override
@@ -95,7 +93,7 @@ public class SortOperator extends Operator {
 
     /**
      * Finds the index of a column in the output schema.
-     * 
+     *
      * @param column The column to find.
      * @return The index of the column, or -1 if not found.
      */
@@ -110,9 +108,7 @@ public class SortOperator extends Operator {
     }
   }
 
-  /**
-   * Resets the operator to its initial state.
-   */
+  /** Resets the operator to its initial state. */
   @Override
   public void reset() {
     childOperator.reset();
@@ -122,7 +118,7 @@ public class SortOperator extends Operator {
 
   /**
    * Retrieves all tuples in sorted order.
-   * 
+   *
    * @return A list of all tuples, sorted according to ORDER BY elements.
    */
   @Override
@@ -135,7 +131,7 @@ public class SortOperator extends Operator {
 
   /**
    * Dumps all tuples to the specified PrintStream.
-   * 
+   *
    * @param printStream The PrintStream to dump the tuples to.
    */
   @Override
