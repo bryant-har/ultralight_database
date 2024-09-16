@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "gradle",
+			"id": "/Users/tuliptang/Desktop/CS 4321/ultralight_databasebuilddb_practicum_bharTeam",
+			"script": "build",
+			"description": "Assembles and tests this project.",
+			"group": "build",
+			"project": "db_practicum_bharTeam",
+			"buildFile": "/Users/tuliptang/Desktop/CS 4321/ultralight_database/build.gradle",
+			"rootProject": "db_practicum_bharTeam",
+			"projectFolder": "/Users/tuliptang/Desktop/CS 4321/ultralight_database",
+			"workspaceFolder": "/Users/tuliptang/Desktop/CS 4321/ultralight_database",
+			"args": "",
+			"javaDebug": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"label": "gradle: build"
+		}
+	]
+}
