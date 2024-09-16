@@ -49,8 +49,7 @@ public class ScanOperator extends Operator {
   /** Resets cursor on the operator to the beginning */
   public void reset() {
     cursor = 0;
-  }
-  ;
+  };
 
   /**
    * Get next tuple from operator
@@ -80,7 +79,8 @@ public class ScanOperator extends Operator {
   }
 
   /**
-   * Iterate through output of operator and send it all to the specified printStream)
+   * Iterate through output of operator and send it all to the specified
+   * printStream)
    *
    * @param printStream stream to receive output, one tuple per line.
    */

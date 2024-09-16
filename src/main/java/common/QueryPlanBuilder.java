@@ -2,30 +2,24 @@ package common;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import jdk.jshell.spi.ExecutionControl.NotImplementedException;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.Statement;
-import net.sf.jsqlparser.statement.select.FromItem;
-import net.sf.jsqlparser.statement.select.OrderByElement;
-import net.sf.jsqlparser.statement.select.PlainSelect;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.SelectExpressionItem;
-import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.select.*;
 import operator.*;
 
 public class QueryPlanBuilder {
+  private Map<String, String> tableAliases;
+  private Map<String, String> columnAliases;
+
   public QueryPlanBuilder() {
+    tableAliases = new HashMap<>();
+    columnAliases = new HashMap<>();
   }
 
-  /**
-   * Top level method to translate statement to query plan
-   *
-   * @param stmt statement to be translated
-   * @return the root of the query plan
-   * @precondition stmt is a Select having a body that is a PlainSelect
-   */
   public Operator buildPlan(Statement stmt) throws NotImplementedException {
     if (!(stmt instanceof Select)) {
       throw new IllegalArgumentException("Only SELECT statements are supported.");
@@ -36,12 +30,31 @@ public class QueryPlanBuilder {
     FromItem fromItem = plainSelect.getFromItem();
     Operator root;
     DBCatalog dbCatalog = DBCatalog.getInstance();
-    Table table = (Table) fromItem;
 
     if (fromItem instanceof Table) {
-      String tableName = ((Table) fromItem).getName();
+      Table table = (Table) fromItem;
+      String tableName = table.getName();
+      String tableAlias = table.getAlias() != null ? table.getAlias().getName() : tableName;
+      tableAliases.put(tableAlias, tableName);
+
       ArrayList<Column> tableColumns = dbCatalog.getColumns(tableName);
       root = new ScanOperator(tableColumns, tableName);
+
+      // Handle column aliases
+      List<SelectItem> selectItems = plainSelect.getSelectItems();
+      for (SelectItem item : selectItems) {
+        if (item instanceof SelectExpressionItem) {
+          SelectExpressionItem sei = (SelectExpressionItem) item;
+          if (sei.getAlias() != null) {
+            String columnName = sei.getExpression().toString();
+            String columnAlias = sei.getAlias().getName();
+            columnAliases.put(columnAlias, columnName);
+          }
+        }
+      }
+
+      // Apply projection
+      root = new ProjectOperator(root, selectItems);
 
       // Check for ORDER BY clause
       List<OrderByElement> orderByElements = plainSelect.getOrderByElements();
@@ -52,39 +65,42 @@ public class QueryPlanBuilder {
 
       // If DISTINCT is present and there's no ORDER BY, add a SortOperator
       if (isDistinct && !hasOrderBy) {
-        // Create a default sort order based on all columns
         orderByElements = new ArrayList<>();
-        for (Column col : tableColumns) {
+        for (Column col : root.getOutputSchema()) {
           OrderByElement orderByElement = new OrderByElement();
           orderByElement.setExpression(col);
           orderByElements.add(orderByElement);
         }
-        root = new SortOperator(tableColumns, root, orderByElements);
+        root = new SortOperator(root.getOutputSchema(), root, orderByElements);
       } else if (hasOrderBy) {
         // If there's an ORDER BY clause, add the SortOperator
-        root = new SortOperator(tableColumns, root, orderByElements);
-      }
-
-      // Check for AS clause and reset table name appropriately
-      tableName = (table.getAlias() != null) ? table.getAlias().getName() : tableName;
-
-      // Check for AS clause for column
-      for (SelectItem item : plainSelect.getSelectItems()) {
-        if (item instanceof SelectExpressionItem) {
-          SelectExpressionItem expressionItem = (SelectExpressionItem) item;
-          String newColName = expressionItem.getAlias() != null ? expressionItem.getAlias().getName() : null;
-        }
-
+        root = new SortOperator(root.getOutputSchema(), root, orderByElements);
       }
 
       // If DISTINCT is present, add the DuplicateElementEliminationOperator
       if (isDistinct) {
-        root = new DuplicateElementEliminationOperator(tableColumns, root);
+        root = new DuplicateElementEliminationOperator(root.getOutputSchema(), root);
       }
 
       return root;
     } else {
       throw new NotImplementedException("Only single table queries are supported.");
     }
+  }
+
+  // Helper method to resolve column references with aliases
+  public String resolveColumnReference(String columnRef) {
+    if (columnAliases.containsKey(columnRef)) {
+      return columnAliases.get(columnRef);
+    }
+    return columnRef;
+  }
+
+  // Helper method to resolve table references with aliases
+  public String resolveTableReference(String tableRef) {
+    if (tableAliases.containsKey(tableRef)) {
+      return tableAliases.get(tableRef);
+    }
+    return tableRef;
   }
 }
