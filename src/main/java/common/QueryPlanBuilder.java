@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import jdk.jshell.spi.ExecutionControl.NotImplementedException;
+import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
@@ -24,7 +25,6 @@ public class QueryPlanBuilder {
     if (!(stmt instanceof Select)) {
       throw new IllegalArgumentException("Only SELECT statements are supported.");
     }
-
     Select select = (Select) stmt;
     PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
     FromItem fromItem = plainSelect.getFromItem();
@@ -39,6 +39,12 @@ public class QueryPlanBuilder {
 
       ArrayList<Column> tableColumns = dbCatalog.getColumns(tableName);
       root = new ScanOperator(tableColumns, tableName);
+
+      // Handle WHERE clause
+      Expression whereExpression = plainSelect.getWhere();
+      if (whereExpression != null) {
+        root = new SelectOperator(root, whereExpression, tableAliases);
+      }
 
       // Handle column aliases
       List<SelectItem> selectItems = plainSelect.getSelectItems();
