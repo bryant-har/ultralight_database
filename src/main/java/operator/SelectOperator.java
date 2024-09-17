@@ -1,18 +1,19 @@
 package operator;
 
-import common.Tuple;
 import common.ExpressionEvaluator;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.schema.Column;
+import common.Tuple;
 import java.util.ArrayList;
 import java.util.Map;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.schema.Column;
 
 public class SelectOperator extends Operator {
   private Operator child;
   private Expression whereExpression;
   private ExpressionEvaluator evaluator;
 
-  public SelectOperator(Operator child, Expression whereExpression, Map<String, String> tableAliases) {
+  public SelectOperator(
+      Operator child, Expression whereExpression, Map<String, String> tableAliases) {
     super(new ArrayList<>(child.getOutputSchema()));
     this.child = child;
     this.whereExpression = whereExpression;

@@ -22,10 +22,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Test;
 
 /**
- * Example class for getting started with JSQLParser. Reads SQL statements from
- * a file and prints
- * them to screen; then extracts SelectBody from each query and also prints it
- * to screen.
+ * Example class for getting started with JSQLParser. Reads SQL statements from a file and prints
+ * them to screen; then extracts SelectBody from each query and also prints it to screen.
  */
 public class ParserExample {
   private final Logger logger = LogManager.getLogger();
@@ -40,7 +38,8 @@ public class ParserExample {
 
     DBCatalog.getInstance().setDataDirectory(resourcePath.resolve("db").toString());
 
-    URI queriesUri = Objects.requireNonNull(classLoader.getResource("samples/input/queries.sql")).toURI();
+    URI queriesUri =
+        Objects.requireNonNull(classLoader.getResource("samples/input/queries.sql")).toURI();
     Path queriesFilePath = Paths.get(queriesUri);
 
     Statements statements = CCJSqlParserUtil.parseStatements(Files.readString(queriesFilePath));

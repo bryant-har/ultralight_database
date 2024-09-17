@@ -1,13 +1,12 @@
 package operator;
 
 import common.Tuple;
+import java.util.ArrayList;
+import java.util.List;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.SelectExpressionItem;
 import net.sf.jsqlparser.statement.select.SelectItem;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ProjectOperator extends Operator {
   private Operator child;
