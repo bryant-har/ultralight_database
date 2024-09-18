@@ -10,11 +10,6 @@ import common.ExpressionEvaluator;
 import java.util.ArrayList;
 import java.util.Map;
 
-/**
- * JoinOperator performs a tuple nested loop join between two child operators.
- * It can handle join conditions (e.g., R.A = S.B) or perform a cross product if
- * the condition is null.
- */
 public class JoinOperator extends Operator {
   private Operator leftChild;
   private Operator rightChild;
@@ -24,12 +19,14 @@ public class JoinOperator extends Operator {
   private Tuple leftTuple;
   private Tuple rightTuple;
 
-  // For evaluating expressions
   private ExpressionEvaluator expressionEvaluator;
 
   public JoinOperator(Operator leftChild, Operator rightChild, Expression joinCondition,
       Map<String, String> tableAliases) {
+    // Combine schemas of the left and right children and set them as the output
+    // schema
     super(combineSchemas(leftChild.getOutputSchema(), rightChild.getOutputSchema()));
+
     this.leftChild = leftChild;
     this.rightChild = rightChild;
     this.joinCondition = joinCondition;
@@ -38,37 +35,34 @@ public class JoinOperator extends Operator {
     // Initialize the expression evaluator with the table aliases
     this.expressionEvaluator = new ExpressionEvaluator(tableAliases);
 
-    // Get the first tuple from the left child
+    // Get the first tuple from the left and right child
     this.leftTuple = leftChild.getNextTuple();
-    // Initialize right tuple to null; it will be set in getNextTuple()
-    this.rightTuple = null;
+    this.rightTuple = rightChild.getNextTuple();
   }
 
   @Override
   public Tuple getNextTuple() {
-    while (leftTuple != null) {
-      if (rightTuple == null) {
-        // Reset right child and get the first right tuple
-        rightChild.reset();
-        rightTuple = rightChild.getNextTuple();
-      }
-      while (rightTuple != null) {
-        Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
+    while (leftTuple != null) { // Outer loop for left child
+      while (rightTuple != null) { // Inner loop for right child
+        Tuple joinedTuple = joinTuples(leftTuple, rightTuple); // Join the left and right tuples
 
-        // Store the current right tuple
-        Tuple currentRightTuple = rightTuple;
         // Move to the next right tuple for the next iteration
         rightTuple = rightChild.getNextTuple();
 
+        // Evaluate the join condition (if it exists) or return the Cartesian product
         if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
-          return joinedTuple;
+          return joinedTuple; // Return the joined tuple if the condition is met
         }
       }
-      // Reset right tuple to null to trigger reset in next iteration
-      rightTuple = null;
+
+      // Reset the right child to start over for the next left tuple
+      rightChild.reset();
+      rightTuple = rightChild.getNextTuple(); // Get the first right tuple again
+
       // Move to the next left tuple
       leftTuple = leftChild.getNextTuple();
     }
+
     return null; // No more tuples
   }
 
@@ -77,48 +71,38 @@ public class JoinOperator extends Operator {
     leftChild.reset();
     rightChild.reset();
     leftTuple = leftChild.getNextTuple();
-    rightTuple = null;
+    rightTuple = rightChild.getNextTuple();
   }
 
-  /**
-   * Combines the schemas of the left and right children, ensuring proper
-   * aliasing.
-   */
   private static ArrayList<Column> combineSchemas(ArrayList<Column> leftSchema, ArrayList<Column> rightSchema) {
     ArrayList<Column> combinedSchema = new ArrayList<>();
 
     // Process the columns from the left schema
     for (Column col : leftSchema) {
-      // Create a new Table object and set its name and alias
       Table table = new Table();
       table.setName(col.getTable().getName());
 
-      // Check if the column has an alias; if not, use the table name as the alias
       if (col.getTable().getAlias() != null) {
         table.setAlias(new Alias(col.getTable().getAlias().getName())); // Keep alias if present
       } else {
-        table.setAlias(new Alias(col.getTable().getName())); // Use the table name as alias if none exists
+        table.setAlias(new Alias(col.getTable().getName())); // Use table name as alias if none exists
       }
 
-      // Create a new Column with the new Table and column name
       Column newCol = new Column(table, col.getColumnName());
       combinedSchema.add(newCol);
     }
 
     // Process the columns from the right schema
     for (Column col : rightSchema) {
-      // Create a new Table object and set its name and alias
       Table table = new Table();
       table.setName(col.getTable().getName());
 
-      // Check if the column has an alias; if not, use the table name as the alias
       if (col.getTable().getAlias() != null) {
         table.setAlias(new Alias(col.getTable().getAlias().getName())); // Keep alias if present
       } else {
-        table.setAlias(new Alias(col.getTable().getName())); // Use the table name as alias if none exists
+        table.setAlias(new Alias(col.getTable().getName())); // Use table name as alias if none exists
       }
 
-      // Create a new Column with the new Table and column name
       Column newCol = new Column(table, col.getColumnName());
       combinedSchema.add(newCol);
     }
@@ -126,24 +110,13 @@ public class JoinOperator extends Operator {
     return combinedSchema;
   }
 
-  /**
-   * Joins two tuples by concatenating their data.
-   */
   private Tuple joinTuples(Tuple left, Tuple right) {
     ArrayList<Integer> combinedData = new ArrayList<>(left.getAllElements());
     combinedData.addAll(right.getAllElements());
     return new Tuple(combinedData);
   }
 
-  /**
-   * Evaluates the join condition on the joined tuple.
-   */
   private boolean evaluateJoinCondition(Tuple tuple) {
     return expressionEvaluator.evaluate(joinCondition, tuple, this.outputSchema);
-  }
-
-  @Override
-  public ArrayList<Column> getOutputSchema() {
-    return outputSchema;
   }
 }
