@@ -93,22 +93,28 @@ public class QueryPlanBuilder {
       String tableName = table.getName();
       String tableAlias = table.getAlias() != null ? table.getAlias().getName() : tableName;
 
-      // Store the alias mapping
+      // Store the alias mapping - ensures that different aliases for the same table
+      // are stored
       tableAliases.put(tableAlias, tableName);
 
-      // Get columns from the catalog
+      // Get columns from the catalog for the given table
       ArrayList<Column> tableColumns = dbCatalog.getColumns(tableName);
 
-      // Assign aliases to columns
+      // Assign aliases to each column in the table schema
+      ArrayList<Column> aliasedColumns = new ArrayList<>();
       for (Column col : tableColumns) {
+        // Create a new Table object to preserve alias
         Table colTable = new Table();
         colTable.setName(tableName);
         colTable.setAlias(new Alias(tableAlias)); // Assign alias to each column's table
-        col.setTable(colTable);
+
+        // Create a new Column with the aliased Table
+        Column aliasedColumn = new Column(colTable, col.getColumnName());
+        aliasedColumns.add(aliasedColumn);
       }
 
-      // Create the ScanOperator with the updated schema
-      return new ScanOperator(tableColumns, tableName);
+      // Create and return a ScanOperator with the updated aliased schema
+      return new ScanOperator(aliasedColumns, tableName);
     } else {
       throw new UnsupportedOperationException("Only table FROM items are supported.");
     }
