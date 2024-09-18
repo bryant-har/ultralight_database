@@ -1,14 +1,13 @@
 package operator;
 
+import common.ExpressionEvaluator;
 import common.Tuple;
+import java.util.ArrayList;
+import java.util.Map;
+import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.expression.Alias;
-import common.ExpressionEvaluator;
-
-import java.util.ArrayList;
-import java.util.Map;
 
 public class JoinOperator extends Operator {
   private Operator leftChild;
@@ -21,7 +20,10 @@ public class JoinOperator extends Operator {
 
   private ExpressionEvaluator expressionEvaluator;
 
-  public JoinOperator(Operator leftChild, Operator rightChild, Expression joinCondition,
+  public JoinOperator(
+      Operator leftChild,
+      Operator rightChild,
+      Expression joinCondition,
       Map<String, String> tableAliases) {
     // Combine schemas of the left and right children and set them as the output
     // schema
@@ -74,7 +76,8 @@ public class JoinOperator extends Operator {
     rightTuple = rightChild.getNextTuple();
   }
 
-  private static ArrayList<Column> combineSchemas(ArrayList<Column> leftSchema, ArrayList<Column> rightSchema) {
+  private static ArrayList<Column> combineSchemas(
+      ArrayList<Column> leftSchema, ArrayList<Column> rightSchema) {
     ArrayList<Column> combinedSchema = new ArrayList<>();
 
     // Process the columns from the left schema
@@ -85,7 +88,8 @@ public class JoinOperator extends Operator {
       if (col.getTable().getAlias() != null) {
         table.setAlias(new Alias(col.getTable().getAlias().getName())); // Keep alias if present
       } else {
-        table.setAlias(new Alias(col.getTable().getName())); // Use table name as alias if none exists
+        table.setAlias(
+            new Alias(col.getTable().getName())); // Use table name as alias if none exists
       }
 
       Column newCol = new Column(table, col.getColumnName());
@@ -100,7 +104,8 @@ public class JoinOperator extends Operator {
       if (col.getTable().getAlias() != null) {
         table.setAlias(new Alias(col.getTable().getAlias().getName())); // Keep alias if present
       } else {
-        table.setAlias(new Alias(col.getTable().getName())); // Use table name as alias if none exists
+        table.setAlias(
+            new Alias(col.getTable().getName())); // Use table name as alias if none exists
       }
 
       Column newCol = new Column(table, col.getColumnName());

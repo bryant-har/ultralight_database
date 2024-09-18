@@ -140,27 +140,14 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
                   .getTable()
                   .getName(); // Handle self-joins by checking both alias and real table name
 
-      // Debugging output for tracking the column resolution
-      System.out.println(
-          "Looking for Column: "
-              + tableAlias
-              + "."
-              + columnName
-              + " | Found Column: "
-              + schemaTableAlias
-              + "."
-              + schemaColumnName);
-
       // Prioritize alias match over table name match
       if (schemaColumnName.equals(columnName)
           && (tableAlias != null && tableAlias.equals(schemaTableAlias))) {
-        System.out.println("Match found for Column: " + tableAlias + "." + columnName);
         return i;
       }
     }
 
     // If no match is found, print an error for debugging
-    System.out.println("No match found for Column: " + tableAlias + "." + columnName);
     return -1; // Return -1 if the column was not found
   }
 }
