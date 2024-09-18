@@ -1,5 +1,10 @@
 [![Java CI with Gradle](https://github.com/CornellDB/db_practicum/actions/workflows/gradle.yml/badge.svg)](https://github.com/CornellDB/db_practicum/actions/workflows/gradle.yml)
 
+# Useful commands
+- ./gradlew goGF
+- ./gradlew test
+- ./gradlew build
+
 # Cornell Database Systems Practicum - CS 4321/5321
 The public repository for Cornell's Database Systems Implementation course (Practicum).
 
