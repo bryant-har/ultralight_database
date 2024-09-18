@@ -65,15 +65,6 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     tempValue = (int) doubleValue.getValue(); // Handle double value (truncated to int)
   }
 
-  // You can add similar methods to handle other types of values (e.g.,
-  // StringValue, BooleanValue)
-  @Override
-  public void visit(StringValue stringValue) {
-    // If needed, you can handle String values here
-    // tempValue = Integer.parseInt(stringValue.getValue()); // Example of handling
-    // string as integer
-  }
-
   @Override
   public void visit(EqualsTo equalsTo) {
     equalsTo.getLeftExpression().accept(this);
