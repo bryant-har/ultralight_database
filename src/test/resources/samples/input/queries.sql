@@ -29,5 +29,3 @@ SELECT DISTINCT S1.A, S2.A FROM Sailors S1, Sailors S2 WHERE S1.B > S2.B AND S1.
 SELECT S.A, R.G FROM Sailors S, Reserves R WHERE S.A = R.G AND S.B < 200;
 SELECT S.A, R.G FROM Sailors S, Reserves R WHERE S.A = R.G ORDER BY S.B DESC;
 SELECT DISTINCT S.A FROM Sailors S, Reserves R WHERE S.A = R.G;
-SELECT S.A, R.G FROM Sailors S, Reserves R WHERE S.A = R.G LIMIT 3;
-SELECT S.A, COUNT(*) FROM Sailors S, Reserves R WHERE S.A = R.G GROUP BY S.A;
