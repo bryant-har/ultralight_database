@@ -33,6 +33,20 @@ public class Tuple {
   }
 
   /**
+   * Creates a tuple using an array of integers.
+   * This was created to handle the binary file format
+   *
+   * @param elements Array with elements of the tuple, in order
+   */
+  public Tuple(int[] elements) {
+    tupleArray = new ArrayList<Integer>(elements.length);
+    for (int element : elements) {
+      tupleArray.add(element);
+    }
+  }
+
+
+  /**
    * Returns element at index i in the tuple.
    *
    * @param i The index of the element you need.

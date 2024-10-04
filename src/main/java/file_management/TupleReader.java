@@ -6,13 +6,13 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TupleReader {
+public class TupleReader implements AutoCloseable {
   int PAGE_SIZE = 4096;
   private ByteBuffer buffer;
   private FileChannel fileChannel;
   private int numTuples;
   private int numTupleAttributes;
-  private List<int[]> tuples;
+  private ArrayList<int[]> tuples;
 
   public TupleReader(String filePath) throws IOException {
     FileInputStream fileInputStream = new FileInputStream(filePath);
@@ -51,10 +51,16 @@ public class TupleReader {
     }
   }
 
-  public List<int[]> readTuples() {
+  public ArrayList<int[]> readTuples() {
     return this.tuples;
   }
 
+
+  @Override
+  public void close() throws IOException {
+    fileChannel.close();
+    // buffer.close();
+  }   
   /** Clear the buffer, builds on native clear, but also sets all values to 0 */
   public void actuallyClearBuffer() {
     buffer.clear();

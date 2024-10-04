@@ -12,11 +12,12 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import net.sf.jsqlparser.schema.Column;
+import file_management.TupleReader;
 
 /** Class to represent scan operators. e.g. select * from table */
 public class ScanOperator extends Operator {
   private int cursor = 0;
-  private ArrayList<String> tableData;
+  private ArrayList<int[]> tableData;
 
   public ScanOperator(ArrayList<Column> outputSchema, String tableName) {
     super(outputSchema);
@@ -28,18 +29,15 @@ public class ScanOperator extends Operator {
    *
    * @param tableName
    */
-  private ArrayList<String> readTableFile(String tableName) {
+  private ArrayList<int[]> readTableFile(String tableName) {
     DBCatalog dbDirectory = DBCatalog.getInstance();
     File tableFile = dbDirectory.getFileForTable(tableName);
-    ArrayList<String> rows = new ArrayList<>();
-    try (InputStream inputStream = new FileInputStream(tableFile);
-        BufferedReader br = new BufferedReader(new InputStreamReader(inputStream))) {
-      String line;
-      while ((line = br.readLine()) != null) {
-        String serializedTokens = line.replaceAll("\\s+", ",");
-        rows.add(serializedTokens);
-      }
-      br.close();
+    //ArrayList of int[] not strings because of binary format
+    ArrayList<int[]> rows = new ArrayList<>();
+
+    try (TupleReader reader = new TupleReader(tableFile.getAbsolutePath())) {
+      rows = reader.readTuples();
+      
     } catch (IOException e) {
       e.printStackTrace();
     }

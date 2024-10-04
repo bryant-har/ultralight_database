@@ -16,10 +16,9 @@ public class BinaryConverter {
       {"5", "100", "500"},
       {"6", "300", "400"}
     };
-    
 
     try (FileOutputStream fos = new FileOutputStream("output.bin")) {
-      ByteBuffer buffer = ByteBuffer.allocate(4096); 
+      ByteBuffer buffer = ByteBuffer.allocate(4096);
       int numAttributes = tuples[0].length;
       int numTuples = 0;
 
@@ -34,24 +33,24 @@ public class BinaryConverter {
         numTuples++;
 
         if (buffer.position() >= 4096 - 12) {
-          buffer.putInt(4, numTuples); 
+          buffer.putInt(4, numTuples);
           buffer.flip();
-          fos.write(buffer.array()); 
-          buffer.clear(); 
+          fos.write(buffer.array());
+          buffer.clear();
 
-          buffer.putInt(numAttributes); 
-          buffer.putInt(0); 
+          buffer.putInt(numAttributes);
+          buffer.putInt(0);
           numTuples = 0;
         }
       }
 
-      if (buffer.position() > 8) { 
-        buffer.putInt(4, numTuples); 
+      if (buffer.position() > 8) {
+        buffer.putInt(4, numTuples);
         while (buffer.position() < 4096) {
-          buffer.putInt(0); 
+          buffer.putInt(0);
         }
         buffer.flip();
-        fos.write(buffer.array()); 
+        fos.write(buffer.array());
       }
 
     } catch (IOException e) {
@@ -59,6 +58,4 @@ public class BinaryConverter {
     }
     System.out.println("Conversion Complete");
   }
-
-
 }

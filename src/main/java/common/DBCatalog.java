@@ -3,8 +3,10 @@ package common;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import org.apache.logging.log4j.LogManager;
@@ -50,6 +52,25 @@ public class DBCatalog {
    * @param directory: The input directory.
    */
   public void setDataDirectory(String directory) {
+    // this.dbDirectory = directory;
+
+    // now we load schema
+    // try (BufferedReader br = new BufferedReader(new FileReader(dbDirectory + "/schema.txt"))) {
+    //   String line;
+    //   while ((line = br.readLine()) != null) {
+    //     String[] parts = line.split(" ");
+    //     String tableName = parts[0];
+    //     ArrayList<Column> columns = new ArrayList<>();
+    //     for (int i = 1; i < parts.length; i++) {
+    //       columns.add(new Column(new Table(tableName), parts[i]));
+    //     }
+    //     tables.put(tableName, columns);
+    //   }
+    // } catch (IOException e) {
+    //   logger.error("Error reading schema file", e);
+    // }
+
+    // 
     try {
       dbDirectory = directory;
       BufferedReader br = new BufferedReader(new FileReader(directory + "/schema.txt"));

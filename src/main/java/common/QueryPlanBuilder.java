@@ -34,16 +34,16 @@ public class QueryPlanBuilder {
   }
 
   /**
-   * Builds a query execution plan based on the provided SQL statement. This method supports SELECT
+   * Builds a query execution plan based on the provided SQL statement. This method supports select
    * statements with optional WHERE, JOIN, ORDER BY, and DISTINCT clauses.
    *
    * @param stmt The SQL statement to build the plan for.
    * @return The root operator of the constructed query execution plan.
    */
   public Operator buildPlan(Statement stmt) {
-    // Ensure the statement is a SELECT statement
+    // Ensure the statement is a select statement
     if (!(stmt instanceof Select)) {
-      throw new IllegalArgumentException("Only SELECT statements are supported.");
+      throw new IllegalArgumentException("Only select statements are supported.");
     }
     Select select = (Select) stmt;
     PlainSelect plainSelect = (PlainSelect) select.getSelectBody();
