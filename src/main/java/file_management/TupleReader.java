@@ -37,13 +37,15 @@ public class TupleReader {
 
     // attributes
     // see directions, might need to use absolute ref.
-    this.numTupleAttributes = buffer.getInt();
-    this.numTuples = buffer.getInt();
-
+    this.numTupleAttributes = buffer.getInt(0);
+    this.numTuples = buffer.getInt(4);
+    System.out.println("Num Tuples: " + this.numTuples);
     for (int i = 0; i < this.numTuples; i++) {
       int[] tuple = new int[this.numTupleAttributes];
+      int baseIndex = i * numTupleAttributes * 4 + 8;
+
       for (int j = 0; j < this.numTupleAttributes; j++) {
-        tuple[j] = buffer.getInt();
+        tuple[j] = buffer.getInt(baseIndex + j * 4);
       }
       tuples.add(tuple);
     }

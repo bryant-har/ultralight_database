@@ -5,14 +5,14 @@ import java.util.List;
 
 public class test_file_management {
   public static void main(String[] args) throws IOException {
-    // testReader();
+    testReader();
     testWriter();
   }
 
   public static void testReader() throws IOException {
     TupleReader reader =
         new TupleReader(
-            "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS 4321/ultralight_database/src/test/resources/samples/input/db/data/BoatsBinary");
+            "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db/data/BoatsBinary");
     List<int[]> tuples = reader.readTuples();
     for (int[] tuple : tuples) {
       for (int i : tuple) {
