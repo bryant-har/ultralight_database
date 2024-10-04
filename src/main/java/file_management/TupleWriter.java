@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.channels.Pipe.SourceChannel;
 import java.util.List;
 
 public class TupleWriter {
@@ -20,9 +19,9 @@ public class TupleWriter {
   public TupleWriter(String filePath) throws IOException {
     File file = new File(filePath);
     file.getParentFile().mkdirs();
-    if(!file.exists()) {
+    if (!file.exists()) {
       file.createNewFile();
-    } 
+    }
     FileOutputStream fileOutputStream = new FileOutputStream(file);
     this.fileChannel = fileOutputStream.getChannel();
     this.buffer = ByteBuffer.allocate(PAGE_SIZE);
@@ -31,46 +30,43 @@ public class TupleWriter {
   }
 
   public void writeTuple(int[] tuple) throws IOException {
+    numTupleAttributes = tuple.length;
     if (currTuple >= (PAGE_SIZE - 8) / (numTupleAttributes * 4)) {
-        flushPage();
-        System.out.println("Flushed in WriteTuple");
+      flushPage();
+      System.out.println("Flushed in WriteTuple");
     } else {
-        int baseIndex = currTuple * numTupleAttributes * 4;
-        for (int i = 0; i < tuple.length; i++) {
-          // buffer.putInt(baseIndex + i *4 , tuple[i]);
-          buffer.putInt(tuple[i]);
-
-        }
-        currTuple++;
+      int baseIndex = currTuple * numTupleAttributes * 4;
+      for (int i = 0; i < tuple.length; i++) {
+        buffer.putInt(baseIndex + i * 4 + 8, tuple[i]);
+      }
+      currTuple++;
+      System.out.println("Curr Tuples" + currTuple);
     }
-}
-
-  public void flushPage() throws IOException {
-    // buffer.putInt(0, currTuple);
-    buffer.flip();
-    fileChannel.write(buffer);
-    actuallyClearBuffer();
-
   }
 
-  /**
-   * Clear the buffer, builds on native clear, but also sets all values to 0
-   */
+  public void flushPage() throws IOException {
+    buffer.putInt(0, numTupleAttributes);
+    buffer.putInt(4, currTuple);
+    // buffer.flip();
+    fileChannel.write(buffer);
+    actuallyClearBuffer();
+  }
+
+  /** Clear the buffer, builds on native clear, but also sets all values to 0 */
   public void actuallyClearBuffer() throws IOException {
     buffer.clear();
     while (buffer.hasRemaining()) {
       buffer.put((byte) 0);
     }
-    buffer.flip();
-    fileChannel.write(buffer);
+    // buffer.flip();
+    // fileChannel.write(buffer);
+
     // Put pointer back at 0
     buffer.clear();
-
   }
 
   public void close() throws IOException {
     flushPage();
     fileChannel.close();
   }
-
 }
