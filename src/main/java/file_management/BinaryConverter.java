@@ -7,43 +7,58 @@ import java.nio.ByteBuffer;
 public class BinaryConverter {
 
   public static void main(String[] args) {
+    System.out.println("Starting Conversion");
     String[][] tuples = {
-      {"101", "2", "3"},
-      {"102", "3", "4"},
-      {"104", "104", "2"},
-      {"103", "1", "1"},
-      {"107", "2", "8"}
+      {"1", "200", "50"},
+      {"2", "200", "200"},
+      {"3", "100", "105"},
+      {"4", "100", "50"},
+      {"5", "100", "500"},
+      {"6", "300", "400"}
     };
+    
 
     try (FileOutputStream fos = new FileOutputStream("output.bin")) {
-      ByteBuffer buffer = ByteBuffer.allocate(4096); // One page is 4096 bytes
+      ByteBuffer buffer = ByteBuffer.allocate(4096); 
+      int numAttributes = tuples[0].length;
+      int numTuples = 0;
+
+      buffer.putInt(numAttributes); // num of attributes
+      buffer.putInt(numTuples); // num of tuples
 
       for (String[] tuple : tuples) {
         for (String value : tuple) {
           int intValue = Integer.parseInt(value);
-          buffer.putInt(intValue); // Write the integer as 4 bytes
+          buffer.putInt(intValue);
         }
+        numTuples++;
 
-        // Check if the buffer is full (page size limit reached)
-        if (buffer.position()
-            >= 4096 - 12) { // Account for the 12 bytes of one tuple (3 integers x 4 bytes)
-          buffer.flip(); // Switch to read mode for writing to the file
-          fos.write(buffer.array()); // Write the full page to the file
-          buffer.clear(); // Clear the buffer for the next page
+        if (buffer.position() >= 4096 - 12) {
+          buffer.putInt(4, numTuples); 
+          buffer.flip();
+          fos.write(buffer.array()); 
+          buffer.clear(); 
+
+          buffer.putInt(numAttributes); 
+          buffer.putInt(0); 
+          numTuples = 0;
         }
       }
 
-      // Fill the rest of the last page with zeroes if needed
-      if (buffer.position() > 0) {
+      if (buffer.position() > 8) { 
+        buffer.putInt(4, numTuples); 
         while (buffer.position() < 4096) {
-          buffer.putInt(0); // Fill remaining bytes with zeroes
+          buffer.putInt(0); 
         }
         buffer.flip();
-        fos.write(buffer.array()); // Write the last partially filled page
+        fos.write(buffer.array()); 
       }
 
     } catch (IOException e) {
       e.printStackTrace();
     }
+    System.out.println("Conversion Complete");
   }
+
+
 }
