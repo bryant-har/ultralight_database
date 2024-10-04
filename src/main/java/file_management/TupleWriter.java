@@ -26,27 +26,27 @@ public class TupleWriter {
     FileOutputStream fileOutputStream = new FileOutputStream(file);
     this.fileChannel = fileOutputStream.getChannel();
     this.buffer = ByteBuffer.allocate(PAGE_SIZE);
+    actuallyClearBuffer();
     currTuple = 0;
   }
 
-  public void writeTuples(int[] tuples) throws IOException {
-    if (currTuple >= (PAGE_SIZE - 8) / numTupleAttributes * 4) {
-      System.out.println("in flush math");
-      flushPage();
+  public void writeTuple(int[] tuple) throws IOException {
+    if (currTuple >= (PAGE_SIZE - 8) / (numTupleAttributes * 4)) {
+        flushPage();
+        System.out.println("Flushed in WriteTuple");
     } else {
-      for (int value : tuples) {
-        buffer.putInt(value);
-        System.out.println(value);
-      }
-      currTuple++;
+        int baseIndex = currTuple * numTupleAttributes * 4;
+        for (int i = 0; i < tuple.length; i++) {
+          // buffer.putInt(baseIndex + i *4 , tuple[i]);
+          buffer.putInt(tuple[i]);
 
+        }
+        currTuple++;
     }
-
-  }
+}
 
   public void flushPage() throws IOException {
-    buffer.putInt(0, currTuple);
-
+    // buffer.putInt(0, currTuple);
     buffer.flip();
     fileChannel.write(buffer);
     actuallyClearBuffer();
@@ -56,11 +56,13 @@ public class TupleWriter {
   /**
    * Clear the buffer, builds on native clear, but also sets all values to 0
    */
-  public void actuallyClearBuffer() {
+  public void actuallyClearBuffer() throws IOException {
     buffer.clear();
     while (buffer.hasRemaining()) {
       buffer.put((byte) 0);
     }
+    buffer.flip();
+    fileChannel.write(buffer);
     // Put pointer back at 0
     buffer.clear();
 

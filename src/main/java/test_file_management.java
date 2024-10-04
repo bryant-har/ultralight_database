@@ -25,11 +25,14 @@ public class test_file_management {
     }
 
     public static void testWriter() throws IOException {
-        List<int[]> tuples = List.of(new int[] { 1, 2, 3 }, new int[] { 4, 5, 6 });
+        List<int[]> tuples = List.of(new int[] {1, 2, 3});    
         String fp = "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/out/initalTest";
         TupleWriter tupleWriter = new TupleWriter(fp);
-        tupleWriter.writeTuples(new int[] { 1, 2, 3 });
+        for (int[] tuple : tuples) {
+            tupleWriter.writeTuple(tuple);
+        }
         tupleWriter.flushPage();
+        tupleWriter.close();
         System.out.println("testWriter done");
 
     }
