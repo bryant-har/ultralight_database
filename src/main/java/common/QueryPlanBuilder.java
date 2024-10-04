@@ -10,7 +10,15 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.*;
-import operator.*;
+import operator.logical.*;
+import operator.physical.*;
+import operator.physical.DuplicateElementEliminationOperator;
+import operator.physical.JoinOperator;
+import operator.physical.Operator;
+import operator.physical.ProjectOperator;
+import operator.physical.ScanOperator;
+import operator.physical.SelectOperator;
+import operator.physical.SortOperator;
 
 /**
  * The QueryPlanBuilder class is responsible for building the query execution plan based on the

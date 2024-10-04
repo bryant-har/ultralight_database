@@ -1,4 +1,4 @@
-package operator;
+package operator.physical;
 
 import common.DBCatalog;
 import common.Tuple;

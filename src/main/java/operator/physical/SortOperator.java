@@ -1,4 +1,4 @@
-package operator;
+package operator.physical;
 
 import common.Tuple;
 import java.io.PrintStream;
