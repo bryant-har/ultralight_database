@@ -67,7 +67,7 @@ public class TupleWriterReaderTests {
 
   @Test
   public void testReadFirstThreeTuples() throws IOException {
-    String file_path_boats = "src/test/resources/samples/input/db/data/BoatsBinary";
+    String file_path_boats = "src/test/resources/samples/input/db/data/Boats";
 
     TupleReader tupleReader = new TupleReader(file_path_boats);
     List<int[]> tuples = tupleReader.readTuples();
