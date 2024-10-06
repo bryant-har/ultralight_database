@@ -3,10 +3,8 @@ package common;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import org.apache.logging.log4j.LogManager;
@@ -70,7 +68,7 @@ public class DBCatalog {
     //   logger.error("Error reading schema file", e);
     // }
 
-    // 
+    //
     try {
       dbDirectory = directory;
       BufferedReader br = new BufferedReader(new FileReader(directory + "/schema.txt"));

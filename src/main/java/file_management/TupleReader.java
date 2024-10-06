@@ -4,7 +4,6 @@ import java.io.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.List;
 
 public class TupleReader implements AutoCloseable {
   int PAGE_SIZE = 4096;
@@ -29,6 +28,7 @@ public class TupleReader implements AutoCloseable {
 
     int bytesReadIn = fileChannel.read(buffer);
 
+    // is this logic still necessary if we have the logic below checking for numTuples == 0?
     if (bytesReadIn == -1) {
       this.numTuples = 0;
       return;
@@ -39,6 +39,10 @@ public class TupleReader implements AutoCloseable {
     // see directions, might need to use absolute ref.
     this.numTupleAttributes = buffer.getInt(0);
     this.numTuples = buffer.getInt(4);
+    // if there are no more tuples left, you are on a page with no tuples
+    if (numTuples == 0) {
+      return;
+    }
     System.out.println("Num Tuples: " + this.numTuples);
     for (int i = 0; i < this.numTuples; i++) {
       int[] tuple = new int[this.numTupleAttributes];
@@ -49,18 +53,19 @@ public class TupleReader implements AutoCloseable {
       }
       tuples.add(tuple);
     }
+    loadNextPage();
   }
 
   public ArrayList<int[]> readTuples() {
     return this.tuples;
   }
 
-
   @Override
   public void close() throws IOException {
     fileChannel.close();
     // buffer.close();
-  }   
+  }
+
   /** Clear the buffer, builds on native clear, but also sets all values to 0 */
   public void actuallyClearBuffer() {
     buffer.clear();

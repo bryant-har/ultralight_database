@@ -1,6 +1,7 @@
 package operator;
 
 import common.Tuple;
+import file_management.TupleWriter;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,6 +59,14 @@ public abstract class Operator {
     Tuple t;
     while ((t = this.getNextTuple()) != null) {
       printStream.println(t);
+    }
+  }
+
+  // dump method for binary output using TupleWriter
+  public void dump(TupleWriter tw) throws Exception {
+    Tuple t;
+    while ((t = this.getNextTuple()) != null) {
+      tw.writeTuple(t.toIntArray());
     }
   }
 }

@@ -33,8 +33,7 @@ public class Tuple {
   }
 
   /**
-   * Creates a tuple using an array of integers.
-   * This was created to handle the binary file format
+   * Creates a tuple using an array of integers. This was created to handle the binary file format
    *
    * @param elements Array with elements of the tuple, in order
    */
@@ -44,7 +43,6 @@ public class Tuple {
       tupleArray.add(element);
     }
   }
-
 
   /**
    * Returns element at index i in the tuple.
@@ -78,6 +76,16 @@ public class Tuple {
     }
     stringRepresentation.append(tupleArray.get(tupleArray.size() - 1));
     return stringRepresentation.toString();
+  }
+
+  // converts a tuple to int[]
+  public int[] toIntArray() {
+    int[] array = new int[tupleArray.size()];
+    // for each item add to arr12
+    for (int i = 0; i < tupleArray.size(); i++) {
+      array[i] = tupleArray.get(i);
+    }
+    return array;
   }
 
   /**

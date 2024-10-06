@@ -2,17 +2,12 @@ package operator;
 
 import common.DBCatalog;
 import common.Tuple;
-import java.io.BufferedReader;
+import file_management.TupleReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import net.sf.jsqlparser.schema.Column;
-import file_management.TupleReader;
 
 /** Class to represent scan operators. e.g. select * from table */
 public class ScanOperator extends Operator {
@@ -32,12 +27,12 @@ public class ScanOperator extends Operator {
   private ArrayList<int[]> readTableFile(String tableName) {
     DBCatalog dbDirectory = DBCatalog.getInstance();
     File tableFile = dbDirectory.getFileForTable(tableName);
-    //ArrayList of int[] not strings because of binary format
+    // ArrayList of int[] not strings because of binary format
     ArrayList<int[]> rows = new ArrayList<>();
 
     try (TupleReader reader = new TupleReader(tableFile.getAbsolutePath())) {
       rows = reader.readTuples();
-      
+
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -82,10 +77,11 @@ public class ScanOperator extends Operator {
    *
    * @param printStream stream to receive output, one tuple per line.
    */
-  public void dump(PrintStream printStream) {
-    Tuple t;
-    while ((t = this.getNextTuple()) != null) {
-      printStream.println(t);
-    }
-  }
+  // public void dump(PrintStream printStream) {
+  //   Tuple t;
+  //   while ((t = this.getNextTuple()) != null) {
+  //     printStream.println(t);
+  //   }
+  // }
+
 }

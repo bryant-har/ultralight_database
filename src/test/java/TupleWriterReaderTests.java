@@ -72,7 +72,7 @@ public class TupleWriterReaderTests {
     TupleReader tupleReader = new TupleReader(file_path_boats);
     List<int[]> tuples = tupleReader.readTuples();
 
-    assertEquals(340, tuples.size(), "Unexpected number of tuples read.");
+    assertEquals(1000, tuples.size(), "Unexpected number of tuples read.");
 
     int[][] expectedTuples = {
       {12, 143, 196},

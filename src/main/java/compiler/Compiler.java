@@ -2,8 +2,8 @@ package compiler;
 
 import common.DBCatalog;
 import common.QueryPlanBuilder;
+import file_management.TupleWriter;
 import java.io.File;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -56,7 +56,7 @@ public class Compiler {
 
           if (outputToFiles) {
             File outfile = new File(outputDir + "/query" + counter);
-            plan.dump(new PrintStream(outfile));
+            plan.dump(new TupleWriter(outfile.getAbsolutePath()));
           } else {
             plan.dump(System.out);
           }

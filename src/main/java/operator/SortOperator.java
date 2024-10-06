@@ -1,7 +1,6 @@
 package operator;
 
 import common.Tuple;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -134,11 +133,11 @@ public class SortOperator extends Operator {
    *
    * @param printStream The PrintStream to dump the tuples to.
    */
-  @Override
-  public void dump(PrintStream printStream) {
-    Tuple t;
-    while ((t = this.getNextTuple()) != null) {
-      printStream.println(t);
-    }
-  }
+  // @Override
+  // public void dump(PrintStream printStream) {
+  //   Tuple t;
+  //   while ((t = this.getNextTuple()) != null) {
+  //     printStream.println(t);
+  //   }
+  // }
 }
