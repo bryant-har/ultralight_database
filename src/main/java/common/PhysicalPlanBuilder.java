@@ -7,10 +7,9 @@ import operator.logical.*;
 import operator.physical.*;
 
 /**
- * The PhysicalPlanBuilder class is responsible for converting a logical query
- * plan
- * into a physical query plan. It implements the Visitor pattern to traverse the
- * logical operator tree and create corresponding physical operators.
+ * The PhysicalPlanBuilder class is responsible for converting a logical query plan into a physical
+ * query plan. It implements the Visitor pattern to traverse the logical operator tree and create
+ * corresponding physical operators.
  */
 public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   /** The resulting physical operator after visiting a logical operator. */

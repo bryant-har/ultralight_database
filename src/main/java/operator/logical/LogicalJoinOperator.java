@@ -7,10 +7,8 @@ import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 
 /**
- * Represents a logical JOIN operation in a query plan.
- * This operator combines rows from two child operators based on a join
- * condition.
- * If no condition is provided, it performs a cross product.
+ * Represents a logical JOIN operation in a query plan. This operator combines rows from two child
+ * operators based on a join condition. If no condition is provided, it performs a cross product.
  */
 public class LogicalJoinOperator extends LogicalOperator {
 
@@ -26,10 +24,10 @@ public class LogicalJoinOperator extends LogicalOperator {
   /**
    * Constructs a new LogicalJoinOperator.
    *
-   * @param leftChild  The left child logical operator.
+   * @param leftChild The left child logical operator.
    * @param rightChild The right child logical operator.
-   * @param condition  The join condition. Can be null for a cross product.
-   * @param schema     The schema of the resulting joined relation.
+   * @param condition The join condition. Can be null for a cross product.
+   * @param schema The schema of the resulting joined relation.
    */
   public LogicalJoinOperator(
       LogicalOperator leftChild,
@@ -52,8 +50,7 @@ public class LogicalJoinOperator extends LogicalOperator {
   }
 
   /**
-   * Accepts a visitor, allowing the visitor to perform operations on this
-   * operator.
+   * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.
    */
@@ -75,8 +72,7 @@ public class LogicalJoinOperator extends LogicalOperator {
   /**
    * Returns a string representation of this operator.
    *
-   * @return A string describing this join operator, including the join condition
-   *         if present.
+   * @return A string describing this join operator, including the join condition if present.
    */
   @Override
   public String toString() {

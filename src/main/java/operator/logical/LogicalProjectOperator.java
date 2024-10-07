@@ -7,10 +7,9 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.SelectItem;
 
 /**
- * Represents a logical PROJECT operation in a query plan.
- * This operator selects specific columns or expressions from its child
- * operator's output,
- * potentially renaming them as specified in the SELECT clause of a SQL query.
+ * Represents a logical PROJECT operation in a query plan. This operator selects specific columns or
+ * expressions from its child operator's output, potentially renaming them as specified in the
+ * SELECT clause of a SQL query.
  */
 public class LogicalProjectOperator extends LogicalOperator {
 
@@ -23,14 +22,12 @@ public class LogicalProjectOperator extends LogicalOperator {
   /**
    * Constructs a new LogicalProjectOperator.
    *
-   * @param child       The child logical operator.
+   * @param child The child logical operator.
    * @param selectItems The list of items to be projected.
-   * @param schema      The schema of the resulting projected relation.
+   * @param schema The schema of the resulting projected relation.
    */
   public LogicalProjectOperator(
-      LogicalOperator child,
-      List<SelectItem> selectItems,
-      List<Column> schema) {
+      LogicalOperator child, List<SelectItem> selectItems, List<Column> schema) {
     super(schema);
     this.child = child;
     this.selectItems = selectItems;
@@ -46,8 +43,7 @@ public class LogicalProjectOperator extends LogicalOperator {
   }
 
   /**
-   * Accepts a visitor, allowing the visitor to perform operations on this
-   * operator.
+   * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.
    */
@@ -69,8 +65,7 @@ public class LogicalProjectOperator extends LogicalOperator {
   /**
    * Returns a string representation of this operator.
    *
-   * @return A string describing this project operator, including the items being
-   *         projected.
+   * @return A string describing this project operator, including the items being projected.
    */
   @Override
   public String toString() {

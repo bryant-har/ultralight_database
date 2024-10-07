@@ -1,6 +1,6 @@
 /**
- * Represents a logical SELECT operation in a query plan.
- * This operator filters rows from its child operator based on a specified condition.
+ * Represents a logical SELECT operation in a query plan. This operator filters rows from its child
+ * operator based on a specified condition.
  */
 package operator.logical;
 
@@ -20,7 +20,7 @@ public class LogicalSelectOperator extends LogicalOperator {
   /**
    * Constructs a new LogicalSelectOperator.
    *
-   * @param child     The child logical operator.
+   * @param child The child logical operator.
    * @param condition The condition used to filter rows.
    */
   public LogicalSelectOperator(LogicalOperator child, Expression condition) {
@@ -39,8 +39,7 @@ public class LogicalSelectOperator extends LogicalOperator {
   }
 
   /**
-   * Accepts a visitor, allowing the visitor to perform operations on this
-   * operator.
+   * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.
    */
@@ -62,8 +61,7 @@ public class LogicalSelectOperator extends LogicalOperator {
   /**
    * Returns a string representation of this operator.
    *
-   * @return A string describing this select operator, including the filtering
-   *         condition.
+   * @return A string describing this select operator, including the filtering condition.
    */
   @Override
   public String toString() {

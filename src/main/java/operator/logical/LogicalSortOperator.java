@@ -1,6 +1,6 @@
 /**
- * Represents a logical SORT operation in a query plan.
- * This operator sorts the rows from its child operator based on specified ordering elements.
+ * Represents a logical SORT operation in a query plan. This operator sorts the rows from its child
+ * operator based on specified ordering elements.
  */
 package operator.logical;
 
@@ -20,7 +20,7 @@ public class LogicalSortOperator extends LogicalOperator {
   /**
    * Constructs a new LogicalSortOperator.
    *
-   * @param child           The child logical operator.
+   * @param child The child logical operator.
    * @param orderByElements The list of elements specifying the sort order.
    */
   public LogicalSortOperator(LogicalOperator child, List<OrderByElement> orderByElements) {
@@ -39,8 +39,7 @@ public class LogicalSortOperator extends LogicalOperator {
   }
 
   /**
-   * Accepts a visitor, allowing the visitor to perform operations on this
-   * operator.
+   * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.
    */
@@ -62,8 +61,7 @@ public class LogicalSortOperator extends LogicalOperator {
   /**
    * Returns a string representation of this operator.
    *
-   * @return A string describing this sort operator, including the ordering
-   *         elements.
+   * @return A string describing this sort operator, including the ordering elements.
    */
   @Override
   public String toString() {

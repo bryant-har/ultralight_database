@@ -5,8 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Represents a logical DISTINCT operation in a query plan.
- * This operator eliminates duplicate tuples from its child operator's output.
+ * Represents a logical DISTINCT operation in a query plan. This operator eliminates duplicate
+ * tuples from its child operator's output.
  */
 public class LogicalDuplicateEliminationOperator extends LogicalOperator {
 
@@ -24,8 +24,7 @@ public class LogicalDuplicateEliminationOperator extends LogicalOperator {
   }
 
   /**
-   * Accepts a visitor, allowing the visitor to perform operations on this
-   * operator.
+   * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.
    */
