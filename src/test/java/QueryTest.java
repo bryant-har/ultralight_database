@@ -37,25 +37,23 @@ public class QueryTest {
       // used to skip queries during testing, comment out to run all 14 commands
       if (counter == 13) {
 
-      Operator plan = queryPlanBuilder.buildPlan(statement);
-      List<Tuple> actualOutput = HelperMethods.collectAllTuples(plan);
-      List<String> expectedOutput = readExpectedOutput(counter);
-      List<String> actualOutputString =
-          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+        Operator plan = queryPlanBuilder.buildPlan(statement);
+        List<Tuple> actualOutput = HelperMethods.collectAllTuples(plan);
+        List<String> expectedOutput = readExpectedOutput(counter);
+        List<String> actualOutputString =
+            actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
-      // check correct num of tuples
-      assertEquals(
-          expectedOutput.size(),
-          actualOutputString.size(),
-          "Query " + counter + " failed: Number of tuples do not match");
+        // check correct num of tuples
+        assertEquals(
+            expectedOutput.size(),
+            actualOutputString.size(),
+            "Query " + counter + " failed: Number of tuples do not match");
 
-      System.out.println("Expected output: " + expectedOutput);
-      // check correct content of tuples
-      assertEquals(expectedOutput, actualOutputString, "Query " + counter + " failed");
-
+        System.out.println("Expected output: " + expectedOutput);
+        // check correct content of tuples
+        assertEquals(expectedOutput, actualOutputString, "Query " + counter + " failed");
       }
       counter++;
-
     }
   }
 

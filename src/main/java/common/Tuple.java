@@ -5,7 +5,7 @@ import java.util.ArrayList;
 /**
  * Class to encapsulate functionality about a database tuple. A tuple is an ArrayList of integers.
  */
-public class Tuple {
+public class Tuple implements Comparable<Tuple> {
 
   ArrayList<Integer> tupleArray;
 
@@ -30,6 +30,18 @@ public class Tuple {
   public Tuple(ArrayList<Integer> elements) {
     tupleArray = new ArrayList<Integer>();
     tupleArray.addAll(elements);
+  }
+
+  @Override
+  public int compareTo(Tuple o) {
+    for (int i = 0; i < tupleArray.size(); i++) {
+      if (tupleArray.get(i) < o.getElementAtIndex(i)) {
+        return -1;
+      } else if (tupleArray.get(i) > o.getElementAtIndex(i)) {
+        return 1;
+      }
+    }
+    return 0;
   }
 
   /**

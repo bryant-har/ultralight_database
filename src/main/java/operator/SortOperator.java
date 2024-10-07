@@ -87,7 +87,7 @@ public class SortOperator extends Operator {
           }
         }
       }
-      return 0;
+      return t1.compareTo(t2);
     }
 
     /**
