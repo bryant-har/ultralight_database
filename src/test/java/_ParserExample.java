@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
  * Example class for getting started with JSQLParser. Reads SQL statements from a file and prints
  * them to screen; then extracts SelectBody from each query and also prints it to screen.
  */
-public class ParserExample {
+public class _ParserExample {
   private final Logger logger = LogManager.getLogger();
 
   @Test
@@ -39,7 +39,7 @@ public class ParserExample {
     DBCatalog.getInstance().setDataDirectory(resourcePath.resolve("db").toString());
 
     URI queriesUri =
-        Objects.requireNonNull(classLoader.getResource("samples/input/queries.sql")).toURI();
+        Objects.requireNonNull(classLoader.getResource("samples/input/p1.sql")).toURI();
     Path queriesFilePath = Paths.get(queriesUri);
 
     Statements statements = CCJSqlParserUtil.parseStatements(Files.readString(queriesFilePath));

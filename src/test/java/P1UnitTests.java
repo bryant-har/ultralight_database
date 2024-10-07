@@ -19,10 +19,8 @@ import net.sf.jsqlparser.statement.Statements;
 import operator.Operator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled
 public class P1UnitTests {
   private static List<Statement> statementList;
   private static QueryPlanBuilder queryPlanBuilder;
@@ -37,7 +35,7 @@ public class P1UnitTests {
     DBCatalog.getInstance().setDataDirectory(resourcePath.resolve("db").toString());
 
     URI queriesFile =
-        Objects.requireNonNull(classLoader.getResource("samples/input/queries.sql")).toURI();
+        Objects.requireNonNull(classLoader.getResource("samples/input/p1.sql")).toURI();
 
     statements = CCJSqlParserUtil.parseStatements(Files.readString(Paths.get(queriesFile)));
     queryPlanBuilder = new QueryPlanBuilder();
