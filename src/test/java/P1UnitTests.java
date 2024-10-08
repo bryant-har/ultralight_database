@@ -16,9 +16,10 @@ import net.sf.jsqlparser.JSQLParserException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
-import operator.Operator;
+import operator.physical.Operator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class P1UnitTests {
@@ -32,7 +33,7 @@ public class P1UnitTests {
     URI path = Objects.requireNonNull(classLoader.getResource("samples/input")).toURI();
     Path resourcePath = Paths.get(path);
 
-    DBCatalog.getInstance().setDataDirectory(resourcePath.resolve("db").toString());
+    DBCatalog.getInstance().setDataDirectory(resourcePath.resolve("db_p1").toString());
 
     URI queriesFile =
         Objects.requireNonNull(classLoader.getResource("samples/input/p1.sql")).toURI();

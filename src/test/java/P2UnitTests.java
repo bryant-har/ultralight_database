@@ -10,7 +10,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statements;
-import operator.Operator;
+import operator.physical.Operator;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -23,7 +24,7 @@ public class P2UnitTests {
 
   @BeforeAll
   public static void setup() {
-    DBCatalog.getInstance().setDataDirectory(INPUT_DIR + "/db");
+    DBCatalog.getInstance().setDataDirectory(INPUT_DIR + "/db_p2");
   }
 
   @ParameterizedTest
