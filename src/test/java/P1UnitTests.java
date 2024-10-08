@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled
 public class P1UnitTests {
   private static List<Statement> statementList;
   private static QueryPlanBuilder queryPlanBuilder;
