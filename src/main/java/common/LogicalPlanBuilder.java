@@ -11,8 +11,10 @@ import net.sf.jsqlparser.statement.select.*;
 import operator.logical.*;
 
 /**
- * The LogicalPlanBuilder class is responsible for constructing a logical query plan from a SQL
- * select statement. It translates the SQL syntax into a tree of logical operators that represent
+ * The LogicalPlanBuilder class is responsible for constructing a logical query
+ * plan from a SQL
+ * select statement. It translates the SQL syntax into a tree of logical
+ * operators that represent
  * the query's operations.
  */
 public class LogicalPlanBuilder {
@@ -29,7 +31,8 @@ public class LogicalPlanBuilder {
    *
    * @param select The SQL Select statement to build the plan from.
    * @return The root LogicalOperator of the constructed logical plan.
-   * @throws UnsupportedOperationException if the select body is not a PlainSelect.
+   * @throws UnsupportedOperationException if the select body is not a
+   *                                       PlainSelect.
    */
   public LogicalOperator buildPlan(Select select) {
     if (!(select.getSelectBody() instanceof PlainSelect)) {
@@ -58,10 +61,9 @@ public class LogicalPlanBuilder {
 
         // For implicit joins (comma-separated in FROM clause),
         // create a cross product initially
-        operator =
-            new LogicalJoinOperator(
-                operator, rightOperator, null // No condition for implicit join at this stage
-                );
+        operator = new LogicalJoinOperator(
+            operator, rightOperator, null // No condition for implicit join at this stage
+        );
       }
     }
 
@@ -80,31 +82,43 @@ public class LogicalPlanBuilder {
     }
 
     // Handle SELECT clause (projection)
-    operator =
-        new LogicalProjectOperator(
-            operator,
-            plainSelect.getSelectItems(),
-            projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
-
-    // Handle DISTINCT
-    if (plainSelect.getDistinct() != null) {
-      operator = new LogicalDuplicateEliminationOperator(operator);
-    }
+    operator = new LogicalProjectOperator(
+        operator,
+        plainSelect.getSelectItems(),
+        projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
 
     // Handle ORDER BY
     if (plainSelect.getOrderByElements() != null) {
       operator = new LogicalSortOperator(operator, plainSelect.getOrderByElements());
     }
 
+    // Handle DISTINCT
+    if (plainSelect.getDistinct() != null) {
+      // If there's no explicit ORDER BY, add a sort operator before DISTINCT
+      if (plainSelect.getOrderByElements() == null) {
+        // Create a list of OrderByElements based on all columns in the current schema
+        List<OrderByElement> orderByElements = new ArrayList<>();
+        for (Column column : operator.getSchema()) {
+          OrderByElement orderByElement = new OrderByElement();
+          orderByElement.setExpression(column);
+          orderByElements.add(orderByElement);
+        }
+        operator = new LogicalSortOperator(operator, orderByElements);
+      }
+      operator = new LogicalDuplicateEliminationOperator(operator);
+    }
+
     return operator;
   }
 
   /**
-   * Builds a logical operator from a FromItem (which can be a table or a subquery).
+   * Builds a logical operator from a FromItem (which can be a table or a
+   * subquery).
    *
    * @param fromItem The FromItem to build the operator from.
    * @return A LogicalOperator representing the FromItem.
-   * @throws UnsupportedOperationException if the FromItem is not a Table or SubSelect.
+   * @throws UnsupportedOperationException if the FromItem is not a Table or
+   *                                       SubSelect.
    */
   private LogicalOperator buildFromItem(FromItem fromItem) {
     if (fromItem instanceof Table) {
@@ -123,9 +137,10 @@ public class LogicalPlanBuilder {
   }
 
   /**
-   * Retrieves the columns for a given table from the DBCatalog and applies the table alias.
+   * Retrieves the columns for a given table from the DBCatalog and applies the
+   * table alias.
    *
-   * @param tableName The name of the table.
+   * @param tableName  The name of the table.
    * @param tableAlias The alias of the table.
    * @return A list of Columns for the specified table with the alias applied.
    */
@@ -145,7 +160,8 @@ public class LogicalPlanBuilder {
    * @param inputSchema The input schema to project from.
    * @param selectItems The list of select items specifying the projection.
    * @return A new schema after applying the projection.
-   * @throws IllegalArgumentException if a specified column is not found in the input schema.
+   * @throws IllegalArgumentException if a specified column is not found in the
+   *                                  input schema.
    */
   private List<Column> projectSchema(List<Column> inputSchema, List<SelectItem> selectItems) {
     List<Column> outputSchema = new ArrayList<>();
@@ -159,11 +175,10 @@ public class LogicalPlanBuilder {
           Column col = (Column) sei.getExpression();
           String columnName = col.getColumnName();
 
-          Column matchingColumn =
-              inputSchema.stream()
-                  .filter(c -> c.getColumnName().equals(columnName))
-                  .findFirst()
-                  .orElse(null);
+          Column matchingColumn = inputSchema.stream()
+              .filter(c -> c.getColumnName().equals(columnName))
+              .findFirst()
+              .orElse(null);
 
           if (matchingColumn != null) {
             if (sei.getAlias() != null) {
@@ -175,8 +190,7 @@ public class LogicalPlanBuilder {
             throw new IllegalArgumentException("Column not found in input schema: " + columnName);
           }
         } else {
-          String columnName =
-              sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
+          String columnName = sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
           outputSchema.add(new Column(null, columnName));
         }
       }
