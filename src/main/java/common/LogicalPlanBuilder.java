@@ -11,10 +11,8 @@ import net.sf.jsqlparser.statement.select.*;
 import operator.logical.*;
 
 /**
- * The LogicalPlanBuilder class is responsible for constructing a logical query
- * plan from a SQL
- * select statement. It translates the SQL syntax into a tree of logical
- * operators that represent
+ * The LogicalPlanBuilder class is responsible for constructing a logical query plan from a SQL
+ * select statement. It translates the SQL syntax into a tree of logical operators that represent
  * the query's operations.
  */
 public class LogicalPlanBuilder {
@@ -31,8 +29,7 @@ public class LogicalPlanBuilder {
    *
    * @param select The SQL Select statement to build the plan from.
    * @return The root LogicalOperator of the constructed logical plan.
-   * @throws UnsupportedOperationException if the select body is not a
-   *                                       PlainSelect.
+   * @throws UnsupportedOperationException if the select body is not a PlainSelect.
    */
   public LogicalOperator buildPlan(Select select) {
     if (!(select.getSelectBody() instanceof PlainSelect)) {
@@ -53,22 +50,37 @@ public class LogicalPlanBuilder {
     // Start with the FROM clause
     LogicalOperator operator = buildFromItem(plainSelect.getFromItem());
 
+    Expression whereExpression = plainSelect.getWhere();
     // Handle JOINs
     List<Join> joins = plainSelect.getJoins();
     if (joins != null) {
       for (Join join : joins) {
         LogicalOperator rightOperator = buildFromItem(join.getRightItem());
+        Table rightTable = (Table) join.getRightItem();
+        Table leftTable = operator.getSchema().get(0).getTable();
+        List<String> usedTableNames = new ArrayList<>();
+        usedTableNames.add(
+            (rightTable.getAlias() != null)
+                ? rightTable.getAlias().getName()
+                : rightTable.getName());
+        usedTableNames.add(
+            (leftTable.getAlias() != null) ? leftTable.getAlias().getName() : leftTable.getName());
 
         // For implicit joins (comma-separated in FROM clause),
         // create a cross product initially
-        operator = new LogicalJoinOperator(
-            operator, rightOperator, null // No condition for implicit join at this stage
-        );
+        Expression prunedWhereExpr =
+            ExpressionEvaluator.pruneWhereCondition(whereExpression, usedTableNames);
+
+        operator =
+            new LogicalJoinOperator(
+                operator,
+                rightOperator,
+                prunedWhereExpr // No condition for implicit join at this stage
+                );
       }
     }
 
     // Handle WHERE clause
-    Expression whereExpression = plainSelect.getWhere();
     if (whereExpression != null) {
       // If we have a cross product from implicit join,
       // the WHERE condition becomes the join condition
@@ -82,10 +94,11 @@ public class LogicalPlanBuilder {
     }
 
     // Handle SELECT clause (projection)
-    operator = new LogicalProjectOperator(
-        operator,
-        plainSelect.getSelectItems(),
-        projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
+    operator =
+        new LogicalProjectOperator(
+            operator,
+            plainSelect.getSelectItems(),
+            projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
 
     // Handle ORDER BY
     if (plainSelect.getOrderByElements() != null) {
@@ -112,13 +125,11 @@ public class LogicalPlanBuilder {
   }
 
   /**
-   * Builds a logical operator from a FromItem (which can be a table or a
-   * subquery).
+   * Builds a logical operator from a FromItem (which can be a table or a subquery).
    *
    * @param fromItem The FromItem to build the operator from.
    * @return A LogicalOperator representing the FromItem.
-   * @throws UnsupportedOperationException if the FromItem is not a Table or
-   *                                       SubSelect.
+   * @throws UnsupportedOperationException if the FromItem is not a Table or SubSelect.
    */
   private LogicalOperator buildFromItem(FromItem fromItem) {
     if (fromItem instanceof Table) {
@@ -137,10 +148,9 @@ public class LogicalPlanBuilder {
   }
 
   /**
-   * Retrieves the columns for a given table from the DBCatalog and applies the
-   * table alias.
+   * Retrieves the columns for a given table from the DBCatalog and applies the table alias.
    *
-   * @param tableName  The name of the table.
+   * @param tableName The name of the table.
    * @param tableAlias The alias of the table.
    * @return A list of Columns for the specified table with the alias applied.
    */
@@ -160,8 +170,7 @@ public class LogicalPlanBuilder {
    * @param inputSchema The input schema to project from.
    * @param selectItems The list of select items specifying the projection.
    * @return A new schema after applying the projection.
-   * @throws IllegalArgumentException if a specified column is not found in the
-   *                                  input schema.
+   * @throws IllegalArgumentException if a specified column is not found in the input schema.
    */
   private List<Column> projectSchema(List<Column> inputSchema, List<SelectItem> selectItems) {
     List<Column> outputSchema = new ArrayList<>();
@@ -175,10 +184,11 @@ public class LogicalPlanBuilder {
           Column col = (Column) sei.getExpression();
           String columnName = col.getColumnName();
 
-          Column matchingColumn = inputSchema.stream()
-              .filter(c -> c.getColumnName().equals(columnName))
-              .findFirst()
-              .orElse(null);
+          Column matchingColumn =
+              inputSchema.stream()
+                  .filter(c -> c.getColumnName().equals(columnName))
+                  .findFirst()
+                  .orElse(null);
 
           if (matchingColumn != null) {
             if (sei.getAlias() != null) {
@@ -190,7 +200,8 @@ public class LogicalPlanBuilder {
             throw new IllegalArgumentException("Column not found in input schema: " + columnName);
           }
         } else {
-          String columnName = sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
+          String columnName =
+              sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
           outputSchema.add(new Column(null, columnName));
         }
       }

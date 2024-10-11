@@ -6,6 +6,7 @@ import net.sf.jsqlparser.expression.*;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 
 public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   private Tuple tuple;
@@ -13,6 +14,46 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   private int tempValue;
   private List<Column> schema;
   private Map<String, String> tableAliases;
+
+  /**
+   * Prunes where condition based on available columns. Removes all where conditions that are not
+   * applicable.
+   *
+   * @param whereCondition The where condition to check.
+   * @return Expression The pruned where condition
+   */
+  static Expression pruneWhereCondition(
+      Expression whereCondition, List<String> availableTableNames) {
+    if (whereCondition instanceof AndExpression) {
+      AndExpression andExpression = (AndExpression) whereCondition;
+      Expression prunedRight =
+          pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
+      Expression prunedLeft =
+          pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
+      if (prunedRight == null || prunedLeft == null) {
+        return (prunedRight == null) ? prunedLeft : prunedRight;
+      }
+      return new AndExpression(prunedLeft, prunedRight);
+    } else if (whereCondition instanceof ComparisonOperator) {
+      ComparisonOperator comparisonOperator = (ComparisonOperator) whereCondition;
+      Expression prunedLeft =
+          pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
+      Expression prunedRight =
+          pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
+      // left and right expressions should represent columns or constants
+      if (prunedLeft == null || prunedRight == null) {
+        return null;
+      }
+    } else if (whereCondition instanceof Column) {
+      Column column = (Column) whereCondition;
+      Table table = column.getTable();
+      if (!availableTableNames.contains(
+          table.getAlias() != null ? table.getAlias().getName() : table.getName())) {
+        return null;
+      }
+    }
+    return whereCondition; // return unchanged expression
+  }
 
   public ExpressionEvaluator(Map<String, String> tableAliases) {
     this.tableAliases = tableAliases;
