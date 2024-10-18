@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import join_algorithms.SMJ;
-// import join_algorithms.BNLJ;
+import join_algorithms.BNLJ;
 import net.sf.jsqlparser.schema.Column;
 import operator.logical.*;
 import operator.physical.*;
@@ -168,19 +168,17 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     op.getChildren().get(1).accept(this);
     Operator rightChild = result;
 
+
+    int number_of_pages_for_BNLJ = 1;
     switch (joinMethod) {
       case TNLJ:
         result = new JoinOperator(leftChild, rightChild, op.getCondition(), tableAliases);
         break;
       case BNLJ:
-        // Assuming you have a BNLJ operator implementation
-        // result = new BNLJOperator(leftChild, rightChild, op.getCondition(),
-        // tableAliases, joinBufferPages);
+        result = new BNLJ(leftChild, rightChild, op.getCondition(), tableAliases, number_of_pages_for_BNLJ);
         break;
       case SMJ:
-        // Assuming you have a SMJ operator implementation
-        // result = new SMJOperator(leftChild, rightChild, op.getCondition(),
-        // tableAliases);
+        result = new SMJ(leftChild, rightChild, op.getCondition(), tableAliases);
         break;
       default:
         throw new IllegalStateException("Unknown join method: " + joinMethod);

@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 import operator.physical.Operator;
 
 public class HelperMethods {
-  static final long TIMEOUT_SECONDS = 600;
+  static final long TIMEOUT_SECONDS = 100;
 
   public static <T> T executeWithTimeout(Callable<T> task, long timeout)
       throws InterruptedException, ExecutionException, TimeoutException {

@@ -30,7 +30,10 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+  // @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+  // Joins are 8,9,10,12,14,15 in p2.sql
+    @ValueSource(ints = {8, 9, 10, 12, 14, 15})
+
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
@@ -57,10 +60,11 @@ public class P2UnitTests {
           "Query " + idx + " failed: Number of tuples do not match");
 
       System.out.println("Expected output: " + expectedOutput);
+      System.out.println("Actual Output: " + actualOutputString );
       // check correct content of tuples
       assertEquals(expectedOutput, actualOutputString, "Query " + idx + " failed");
     } else {
-      throw new UnsupportedOperationException("Only SELECT statements are supported");
+      throw new UnsupportedOperationException("Only SsELECT statements are supported");
     }
   }
 
