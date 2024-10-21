@@ -2,6 +2,8 @@ package common;
 
 import java.util.ArrayList;
 import java.util.Map;
+
+import join_algorithms.BNLJ;
 import net.sf.jsqlparser.schema.Column;
 import operator.logical.*;
 import operator.physical.*;
@@ -82,7 +84,9 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     Operator leftChild = result;
     op.getChildren().get(1).accept(this);
     Operator rightChild = result;
-    result = new JoinOperator(leftChild, rightChild, op.getCondition(), tableAliases);
+    // For P2, with BNLJ we switch this from the old JoinOperator TNLJ, TODO we need to choose when to use TNLJ vs BNJL
+    result = new BNLJ(leftChild, rightChild, op.getCondition(), tableAliases, 1);
+    // result = new JoinOperator(leftChild, rightChild, op.getCondition(), tableAliases);
   }
 
   /**

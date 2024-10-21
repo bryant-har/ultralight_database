@@ -61,10 +61,12 @@ public class BNLJ extends Operator {
   @Override
   public Tuple getNextTuple() {
 
+    System.out.println("BNLJ getNextTuple");
+
     if (isBlockEmpty) {
       block = getBlock();
       outerPointer = 0;
-      innerPointer = 0;
+      // innerPointer = 0;
       if (block.isEmpty()) {
         return null;
       }
@@ -72,13 +74,20 @@ public class BNLJ extends Operator {
 
     leftTuple = block.get(outerPointer);
     rightTuple = rightChild.getNextTuple();
-    while (leftTuple != null && rightTuple != null) {
+    while (leftTuple != null) {
+      if(rightTuple == null){
+        rightChild.reset();
+        rightTuple = rightChild.getNextTuple();
+        outerPointer++;
+      }
       Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
+      System.out.println("Joined tuple: " + joinedTuple + " innerPointer: " + innerPointer + " outerPointer: "
+          + outerPointer );
       innerPointer++;
-      outerPointer++;
       if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
         if (outerPointer >= numberPages * TUPLESONPAGE) {
           isBlockEmpty = true;
+          System.out.println("Block is empty");
         }
         return joinedTuple;
       }
