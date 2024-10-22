@@ -8,9 +8,11 @@ import java.util.List;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.OrderByElement;
+import java.util.Comparator;
 
 /**
- * SortOperator class implements sorting functionality for database operations. It sorts tuples
+ * SortOperator class implements sorting functionality for database operations.
+ * It sorts tuples
  * based on specified ORDER BY elements.
  */
 public class SortOperator extends Operator {
@@ -23,8 +25,8 @@ public class SortOperator extends Operator {
   /**
    * Constructor for SortOperator.
    *
-   * @param outputSchema The schema of the output tuples.
-   * @param childOperator The child operator providing input tuples.
+   * @param outputSchema    The schema of the output tuples.
+   * @param childOperator   The child operator providing input tuples.
    * @param orderByElements The list of ORDER BY elements for sorting.
    */
   public SortOperator(
@@ -66,7 +68,8 @@ public class SortOperator extends Operator {
   }
 
   /**
-   * Inner class implementing Comparator for Tuple objects. Used for sorting tuples based on ORDER
+   * Inner class implementing Comparator for Tuple objects. Used for sorting
+   * tuples based on ORDER
    * BY elements.
    */
   private class TupleComparator implements Comparator<Tuple> {
@@ -135,9 +138,42 @@ public class SortOperator extends Operator {
    */
   // @Override
   // public void dump(PrintStream printStream) {
-  //   Tuple t;
-  //   while ((t = this.getNextTuple()) != null) {
-  //     printStream.println(t);
-  //   }
+  // Tuple t;
+  // while ((t = this.getNextTuple()) != null) {
+  // printStream.println(t);
   // }
+  // }
+
+  protected java.util.Comparator<Tuple> getComparator() {
+    return new java.util.Comparator<Tuple>() {
+      @Override
+      public int compare(Tuple t1, Tuple t2) {
+        for (OrderByElement orderByElement : orderByElements) {
+          Expression expr = orderByElement.getExpression();
+          if (expr instanceof Column) {
+            Column col = (Column) expr;
+            String columnName = col.getColumnName();
+
+            // Find column index in schema
+            int index = -1;
+            for (int i = 0; i < outputSchema.size(); i++) {
+              if (outputSchema.get(i).getColumnName().equals(columnName)) {
+                index = i;
+                break;
+              }
+            }
+
+            if (index != -1) {
+              int comparison = Integer.compare(t1.getElementAtIndex(index),
+                  t2.getElementAtIndex(index));
+              if (comparison != 0) {
+                return orderByElement.isAsc() ? comparison : -comparison;
+              }
+            }
+          }
+        }
+        return 0;
+      }
+    };
+  }
 }

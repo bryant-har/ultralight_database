@@ -10,8 +10,10 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 
 /**
- * The JoinOperator class implements a relational join operation. It takes two child operators and
- * returns a result based on the join condition. If no join condition is provided, it performs a
+ * The JoinOperator class implements a relational join operation. It takes two
+ * child operators and
+ * returns a result based on the join condition. If no join condition is
+ * provided, it performs a
  * Cartesian product.
  */
 public class JoinOperator extends Operator {
@@ -35,10 +37,10 @@ public class JoinOperator extends Operator {
   /**
    * Constructs a JoinOperator.
    *
-   * @param leftChild The left child operator for the join.
-   * @param rightChild The right child operator for the join.
+   * @param leftChild     The left child operator for the join.
+   * @param rightChild    The right child operator for the join.
    * @param joinCondition The join condition (can be null for Cartesian product).
-   * @param tableAliases A map of table aliases to their actual names.
+   * @param tableAliases  A map of table aliases to their actual names.
    */
   public JoinOperator(
       Operator leftChild,
@@ -62,7 +64,8 @@ public class JoinOperator extends Operator {
   }
 
   /**
-   * Retrieves the next tuple from the join operation by combining tuples from the left and right
+   * Retrieves the next tuple from the join operation by combining tuples from the
+   * left and right
    * child operators.
    *
    * @return The next joined tuple, or null if no more tuples are available.
@@ -96,7 +99,8 @@ public class JoinOperator extends Operator {
   }
 
   /**
-   * Resets the join operation, allowing both child operators to be re-executed from the beginning.
+   * Resets the join operation, allowing both child operators to be re-executed
+   * from the beginning.
    */
   @Override
   public void reset() {
@@ -110,10 +114,11 @@ public class JoinOperator extends Operator {
   }
 
   /**
-   * Combines the schemas of the left and right child operators into a single schema. This is used
+   * Combines the schemas of the left and right child operators into a single
+   * schema. This is used
    * to produce the output schema for the join operation.
    *
-   * @param leftSchema The schema of the left child.
+   * @param leftSchema  The schema of the left child.
    * @param rightSchema The schema of the right child.
    * @return The combined schema of both children.
    */
@@ -159,9 +164,10 @@ public class JoinOperator extends Operator {
   }
 
   /**
-   * Combines a left tuple and a right tuple into a single tuple by concatenating their elements.
+   * Combines a left tuple and a right tuple into a single tuple by concatenating
+   * their elements.
    *
-   * @param left The tuple from the left child.
+   * @param left  The tuple from the left child.
    * @param right The tuple from the right child.
    * @return A new tuple combining elements from both the left and right tuples.
    */
