@@ -37,7 +37,7 @@ public class P2UnitTests {
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
     PhysicalPlanBuilder physicalPlanBuilder =
-        new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases());
+        new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), CONFIG_FILE, INPUT_DIR + "/temp");
 
     Statement statement = statements.get(idx - 1);
     if (statement instanceof Select) {

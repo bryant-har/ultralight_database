@@ -3,6 +3,9 @@ package common;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Map;
+
+import join_algorithms.SMJ;
+// import join_algorithms.BNLJ;
 import net.sf.jsqlparser.schema.Column;
 import operator.logical.*;
 import operator.physical.*;
