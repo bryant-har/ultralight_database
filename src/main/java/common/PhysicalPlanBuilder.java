@@ -84,9 +84,17 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     Operator leftChild = result;
     op.getChildren().get(1).accept(this);
     Operator rightChild = result;
+
+    boolean useBNLJ = true; 
+    int number_of_pages_for_BNLJ = 1;
+
     // For P2, with BNLJ we switch this from the old JoinOperator TNLJ, TODO we need to choose when to use TNLJ vs BNJL
-    result = new BNLJ(leftChild, rightChild, op.getCondition(), tableAliases, 1);
-    // result = new JoinOperator(leftChild, rightChild, op.getCondition(), tableAliases);
+
+    if(useBNLJ){
+      result = new BNLJ(leftChild, rightChild, op.getCondition(), tableAliases, number_of_pages_for_BNLJ);
+    } else {
+      result = new JoinOperator(leftChild, rightChild, op.getCondition(), tableAliases);
+    }
   }
 
   /**
