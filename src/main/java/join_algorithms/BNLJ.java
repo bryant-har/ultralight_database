@@ -101,13 +101,11 @@ public class BNLJ extends Operator {
         // reset right/inner and move to next tupe in the block
         outerPointer++;
         rightChild.reset();
-        innerPointer = 0;
         continue;
 
       }
 
       Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
-      innerPointer++;
 
       if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
         // Use this as a debug statemnt 
