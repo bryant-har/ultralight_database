@@ -61,47 +61,69 @@ public class BNLJ extends Operator {
   @Override
   public Tuple getNextTuple() {
 
-    System.out.println("BNLJ getNextTuple");
+    while (true) {
+      // System.out.println("inside BNLJ getNextTuple");
 
-    if (isBlockEmpty) {
-      block = getBlock();
-      outerPointer = 0;
-      // innerPointer = 0;
-      if (block.isEmpty()) {
-        return null;
-      }
-    }
+      if (isBlockEmpty) {
+        block = getBlock();
 
-    leftTuple = block.get(outerPointer);
-    rightTuple = rightChild.getNextTuple();
-    while (leftTuple != null) {
-      if(rightTuple == null){
-        rightChild.reset();
-        rightTuple = rightChild.getNextTuple();
-        outerPointer++;
-      }
-      Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
-      System.out.println("Joined tuple: " + joinedTuple + " innerPointer: " + innerPointer + " outerPointer: "
-          + outerPointer );
-      innerPointer++;
-      if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
-        if (outerPointer >= numberPages * TUPLESONPAGE) {
-          isBlockEmpty = true;
-          System.out.println("Block is empty");
+        if (block.isEmpty()) {
+          return null;
         }
-        return joinedTuple;
+        isBlockEmpty = false;
+        outerPointer = 0;
+        rightChild.reset();
       }
 
-    }
+      if (outerPointer >= numberPages * TUPLESONPAGE) {
+        // processed all tuples in the current block
+        isBlockEmpty = true;
+        continue; // Get the next block
+      }
 
-    return null;
+      leftTuple = block.get(outerPointer);
+      rightTuple = rightChild.getNextTuple();
+      // System.out.println("right tuple is " + rightTuple);
+
+      // processed all tuples in innner table for this current block
+      if (rightTuple == null) {
+        outerPointer++;
+        rightChild.reset();
+        innerPointer = 0;
+        continue;
+
+      }
+
+      Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
+
+      // if ((outerPointer > 0) & (outerPointer % 5 == 0)) {
+      // System.out.println("Joined tuple: " + joinedTuple + " innerPointer: " +
+      // innerPointer + " outerPointer: "
+      // + outerPointer);
+      // }
+
+      innerPointer++;
+
+      if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
+        // if (outerPointer >= numberPages * TUPLESONPAGE) {
+        // isBlockEmpty = true;
+        // System.out.println("Block is empty");
+        // }
+        System.out.println("returning out joinedTuple");
+        return joinedTuple;
+
+      }
+    }
 
   }
 
   @Override
   public void reset() {
-    // TODO Auto-generated method stub
-    throw new UnsupportedOperationException("Unimplemented method 'reset'");
+    leftChild.reset();
+    rightChild.reset();
+    block.clear();
+    isBlockEmpty = true;
+    outerPointer = 0;
   }
 
   private static ArrayList<Column> combineSchemas(
