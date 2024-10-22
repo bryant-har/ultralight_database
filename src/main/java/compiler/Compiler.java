@@ -50,10 +50,8 @@ public class Compiler {
 
       // Create builders
       LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-      PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
-          logicalPlanBuilder.getTableAliases(),
-          configPath,
-          tempDir);
+      PhysicalPlanBuilder physicalPlanBuilder =
+          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), configPath, tempDir);
 
       // Process each query
       int queryCount = 1;

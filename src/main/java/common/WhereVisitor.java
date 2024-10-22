@@ -115,7 +115,6 @@ public class WhereVisitor extends ExpressionVisitorAdapter {
         Table table = getTableFromAlias(column.getTable().getName());
         selectExpressions.put(
             table.getName(), mergeExpressions(selectExpressions.get(table.getName()), binaryExpr));
-        
       }
     }
   }

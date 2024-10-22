@@ -8,11 +8,9 @@ import java.util.List;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.OrderByElement;
-import java.util.Comparator;
 
 /**
- * SortOperator class implements sorting functionality for database operations.
- * It sorts tuples
+ * SortOperator class implements sorting functionality for database operations. It sorts tuples
  * based on specified ORDER BY elements.
  */
 public class SortOperator extends Operator {
@@ -25,8 +23,8 @@ public class SortOperator extends Operator {
   /**
    * Constructor for SortOperator.
    *
-   * @param outputSchema    The schema of the output tuples.
-   * @param childOperator   The child operator providing input tuples.
+   * @param outputSchema The schema of the output tuples.
+   * @param childOperator The child operator providing input tuples.
    * @param orderByElements The list of ORDER BY elements for sorting.
    */
   public SortOperator(
@@ -68,8 +66,7 @@ public class SortOperator extends Operator {
   }
 
   /**
-   * Inner class implementing Comparator for Tuple objects. Used for sorting
-   * tuples based on ORDER
+   * Inner class implementing Comparator for Tuple objects. Used for sorting tuples based on ORDER
    * BY elements.
    */
   private class TupleComparator implements Comparator<Tuple> {
@@ -164,8 +161,8 @@ public class SortOperator extends Operator {
             }
 
             if (index != -1) {
-              int comparison = Integer.compare(t1.getElementAtIndex(index),
-                  t2.getElementAtIndex(index));
+              int comparison =
+                  Integer.compare(t1.getElementAtIndex(index), t2.getElementAtIndex(index));
               if (comparison != 0) {
                 return orderByElement.isAsc() ? comparison : -comparison;
               }

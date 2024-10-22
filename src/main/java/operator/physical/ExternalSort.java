@@ -19,7 +19,11 @@ public class ExternalSort extends SortOperator {
   private ArrayList<int[]> currentBatch;
   private int currentIndex;
 
-  public ExternalSort(ArrayList<Column> schema, Operator child, List<OrderByElement> orderByElements, int bufferPages,
+  public ExternalSort(
+      ArrayList<Column> schema,
+      Operator child,
+      List<OrderByElement> orderByElements,
+      int bufferPages,
       String tempDir) {
     super(schema, child, orderByElements);
     this.child = child;
@@ -120,7 +124,8 @@ public class ExternalSort extends SortOperator {
     return nextRunCount;
   }
 
-  private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun) throws IOException {
+  private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun)
+      throws IOException {
     // Initialize readers and their current tuples
     List<TupleReader> readers = new ArrayList<>();
     List<ArrayList<int[]>> currentTuples = new ArrayList<>();
@@ -136,7 +141,8 @@ public class ExternalSort extends SortOperator {
     }
 
     // Create priority queue for merging
-    PriorityQueue<RunEntry> pq = new PriorityQueue<>((a, b) -> getComparator().compare(a.tuple, b.tuple));
+    PriorityQueue<RunEntry> pq =
+        new PriorityQueue<>((a, b) -> getComparator().compare(a.tuple, b.tuple));
 
     // Initialize priority queue
     for (int i = 0; i < numRuns; i++) {
@@ -167,7 +173,9 @@ public class ExternalSort extends SortOperator {
         }
 
         // If we have more tuples in this run, add the next one to the queue
-        if (currentBatch != null && !currentBatch.isEmpty() && currentIndices.get(runIndex) < currentBatch.size()) {
+        if (currentBatch != null
+            && !currentBatch.isEmpty()
+            && currentIndices.get(runIndex) < currentBatch.size()) {
           Tuple nextTuple = new Tuple(currentBatch.get(currentIndices.get(runIndex)));
           pq.offer(new RunEntry(nextTuple, runIndex));
         }

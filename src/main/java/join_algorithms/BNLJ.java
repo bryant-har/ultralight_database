@@ -1,15 +1,15 @@
 package join_algorithms;
 
 import common.ExpressionEvaluator;
+import common.Tuple;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import operator.physical.Operator;
-import java.util.Map;
-import java.util.List;
-import common.Tuple;
-import java.util.ArrayList;
 
 public class BNLJ extends Operator {
 
@@ -24,7 +24,7 @@ public class BNLJ extends Operator {
   private int numberPages;
   private final int TUPLESONPAGE = 1024;
 
-  private List<Tuple> block; 
+  private List<Tuple> block;
   private boolean isBlockEmpty;
 
   private int outerPointer;
@@ -33,7 +33,11 @@ public class BNLJ extends Operator {
   private Tuple leftTuple;
   private Tuple rightTuple;
 
-  public BNLJ(Operator leftChild, Operator rightChild, Expression joinCondition, Map<String, String> tableAliases,
+  public BNLJ(
+      Operator leftChild,
+      Operator rightChild,
+      Expression joinCondition,
+      Map<String, String> tableAliases,
       int numberPages) {
     super(combineSchemas(leftChild.getOutputSchema(), rightChild.getOutputSchema()));
     this.leftChild = leftChild;
@@ -44,15 +48,14 @@ public class BNLJ extends Operator {
     this.numberPages = numberPages;
     this.outerPointer = 0;
     this.innerPointer = 0;
-    this.block = new ArrayList<>(); 
+    this.block = new ArrayList<>();
     getBlock();
     this.isBlockEmpty = false;
-
   }
 
   public List<Tuple> getBlock() {
     block.clear();
-    
+
     for (int i = 0; i < numberPages * TUPLESONPAGE; i++) {
       Tuple tuple = leftChild.getNextTuple();
       if (tuple == null) {
@@ -64,13 +67,13 @@ public class BNLJ extends Operator {
   }
 
   /**
- * Retrieves the next joined tuple from the BNLJ
- * 
- * This method gets blocks of tuples from the left child/aoutter nd 
- * tuples from the right to produce joined tuples, then checks join cond..
- * 
- * @return the next joined tuple, or null if no more tuples exist.
- */
+   * Retrieves the next joined tuple from the BNLJ
+   *
+   * <p>This method gets blocks of tuples from the left child/aoutter nd tuples from the right to
+   * produce joined tuples, then checks join cond..
+   *
+   * @return the next joined tuple, or null if no more tuples exist.
+   */
   @Override
   public Tuple getNextTuple() {
 
@@ -87,7 +90,6 @@ public class BNLJ extends Operator {
         rightChild.reset();
       }
 
-     
       if (outerPointer >= block.size()) {
         // processed all tuples in the current block
         isBlockEmpty = true;
@@ -103,21 +105,19 @@ public class BNLJ extends Operator {
         rightChild.reset();
         innerPointer = 0;
         continue;
-
       }
 
       Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
       innerPointer++;
 
       if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
-        // Use this as a debug statemnt 
-        // System.out.println("returning out joinedTuple " + joinedTuple + " innerPointer: " + innerPointer
+        // Use this as a debug statemnt
+        // System.out.println("returning out joinedTuple " + joinedTuple + " innerPointer: " +
+        // innerPointer
         //     + " outerPointer: " + outerPointer);
         return joinedTuple;
-
       }
     }
-
   }
 
   @Override
@@ -180,5 +180,4 @@ public class BNLJ extends Operator {
   private boolean evaluateJoinCondition(Tuple tuple) {
     return expressionEvaluator.evaluate(joinCondition, tuple, this.outputSchema);
   }
-
 }

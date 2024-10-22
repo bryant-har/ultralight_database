@@ -1,16 +1,16 @@
 package join_algorithms;
 
 import common.ExpressionEvaluator;
+import common.Tuple;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import operator.physical.Operator;
-import java.util.Map;
-import java.util.List;
-import common.Tuple;
-import java.util.ArrayList;
-import java.util.Collections;
 
 public class SMJ extends Operator {
 
@@ -30,7 +30,11 @@ public class SMJ extends Operator {
   private Tuple leftTuple;
   private Tuple rightTuple;
 
-  public SMJ(Operator leftChild, Operator rightChild, Expression joinCondition, Map<String, String> tableAliases) {
+  public SMJ(
+      Operator leftChild,
+      Operator rightChild,
+      Expression joinCondition,
+      Map<String, String> tableAliases) {
     super(combineSchemas(leftChild.getOutputSchema(), rightChild.getOutputSchema()));
     this.leftChild = leftChild; // TODO: This should be a Sort Operator
     this.rightChild = rightChild; // TODO: This should be a Sort Operator
@@ -127,5 +131,4 @@ public class SMJ extends Operator {
   private boolean evaluateJoinCondition(Tuple tuple) {
     return expressionEvaluator.evaluate(joinCondition, tuple, this.outputSchema);
   }
-
 }
