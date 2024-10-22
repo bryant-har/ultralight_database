@@ -24,8 +24,8 @@ public class BNLJ extends Operator {
   private int numberPages;
   private final int TUPLESONPAGE = 1024;
 
-  private List<Tuple> block = new ArrayList<>();
-  private boolean isBlockEmpty = true;
+  private List<Tuple> block; 
+  private boolean isBlockEmpty;
 
   private int outerPointer;
   private int innerPointer;
@@ -44,17 +44,25 @@ public class BNLJ extends Operator {
     this.numberPages = numberPages;
     this.outerPointer = 0;
     this.innerPointer = 0;
+    this.block = new ArrayList<>(); 
     getBlock();
+    this.isBlockEmpty = false;
+
   }
 
   public List<Tuple> getBlock() {
+    block.clear();
+    
     for (int i = 0; i < numberPages * TUPLESONPAGE; i++) {
       Tuple tuple = leftChild.getNextTuple();
       if (tuple == null) {
+        System.out.println("break at i: " + i);
         break;
       }
       block.add(tuple);
     }
+    System.out.println("estimated block size is " + numberPages * TUPLESONPAGE);
+    System.out.println("block size is " + block.size()); ;
     return block;
   }
 
@@ -96,20 +104,12 @@ public class BNLJ extends Operator {
 
       Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
 
-      // if ((outerPointer > 0) & (outerPointer % 5 == 0)) {
-      // System.out.println("Joined tuple: " + joinedTuple + " innerPointer: " +
-      // innerPointer + " outerPointer: "
-      // + outerPointer);
-      // }
 
       innerPointer++;
 
       if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
-        // if (outerPointer >= numberPages * TUPLESONPAGE) {
-        // isBlockEmpty = true;
-        // System.out.println("Block is empty");
-        // }
-        System.out.println("returning out joinedTuple");
+        System.out.println("returning out joinedTuple " + joinedTuple + " innerPointer: " + innerPointer
+            + " outerPointer: " + outerPointer);
         return joinedTuple;
 
       }
