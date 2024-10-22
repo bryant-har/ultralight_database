@@ -56,21 +56,25 @@ public class BNLJ extends Operator {
     for (int i = 0; i < numberPages * TUPLESONPAGE; i++) {
       Tuple tuple = leftChild.getNextTuple();
       if (tuple == null) {
-        System.out.println("break at i: " + i);
         break;
       }
       block.add(tuple);
     }
-    System.out.println("estimated block size is " + numberPages * TUPLESONPAGE);
-    System.out.println("block size is " + block.size()); ;
     return block;
   }
 
+  /**
+ * Retrieves the next joined tuple from the BNLJ
+ * 
+ * This method gets blocks of tuples from the left child/aoutter nd 
+ * tuples from the right to produce joined tuples, then checks join cond..
+ * 
+ * @return the next joined tuple, or null if no more tuples exist.
+ */
   @Override
   public Tuple getNextTuple() {
 
     while (true) {
-      // System.out.println("inside BNLJ getNextTuple");
 
       if (isBlockEmpty) {
         block = getBlock();
@@ -83,18 +87,18 @@ public class BNLJ extends Operator {
         rightChild.reset();
       }
 
-      if (outerPointer >= numberPages * TUPLESONPAGE) {
+     
+      if (outerPointer >= block.size()) {
         // processed all tuples in the current block
         isBlockEmpty = true;
-        continue; // Get the next block
+        continue; // on next iter. of while true, will get new block
       }
 
       leftTuple = block.get(outerPointer);
       rightTuple = rightChild.getNextTuple();
-      // System.out.println("right tuple is " + rightTuple);
 
-      // processed all tuples in innner table for this current block
       if (rightTuple == null) {
+        // reset right/inner and move to next tupe in the block
         outerPointer++;
         rightChild.reset();
         innerPointer = 0;
@@ -103,13 +107,12 @@ public class BNLJ extends Operator {
       }
 
       Tuple joinedTuple = joinTuples(leftTuple, rightTuple);
-
-
       innerPointer++;
 
       if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
-        System.out.println("returning out joinedTuple " + joinedTuple + " innerPointer: " + innerPointer
-            + " outerPointer: " + outerPointer);
+        // Use this as a debug statemnt 
+        // System.out.println("returning out joinedTuple " + joinedTuple + " innerPointer: " + innerPointer
+        //     + " outerPointer: " + outerPointer);
         return joinedTuple;
 
       }
