@@ -91,7 +91,7 @@ public class Compiler {
             // physicalPlan.dump(output);
 
           } else {
-            logger.warn("Skipping non-SELECT statement: {}", statement);
+            logger.warn("Skipping non-sELECT statement: {}", statement);
           }
         } catch (Exception e) {
           logger.error("Error processing query {}: {}", queryCount, e.getMessage());
