@@ -19,6 +19,25 @@ public class ExternalSort extends SortOperator {
   private ArrayList<int[]> currentBatch;
   private int currentIndex;
 
+  private static class TupleWithReader implements Comparable<TupleWithReader> {
+    final Tuple tuple;
+    final TupleReader reader;
+    final int runIndex;
+
+    TupleWithReader(Tuple tuple, TupleReader reader, int runIndex) {
+      this.tuple = tuple;
+      this.reader = reader;
+      this.runIndex = runIndex;
+    }
+
+    @Override
+    public int compareTo(TupleWithReader other) {
+      int comparison = tuple.compareTo(other.tuple);
+      // If tuples are equal, maintain stable sort by run index
+      return comparison != 0 ? comparison : Integer.compare(runIndex, other.runIndex);
+    }
+  }
+
   public ExternalSort(
       ArrayList<Column> schema,
       Operator child,
@@ -41,14 +60,11 @@ public class ExternalSort extends SortOperator {
 
   private void performSort() {
     try {
-      // Calculate tuples per buffer page
       int tuplesPerPage = 4096 / (getOutputSchema().size() * 4);
       int tuplesPerRun = tuplesPerPage * bufferPages;
 
-      // Phase 1: Create initial sorted runs
       int numInitialRuns = createInitialSortedRuns(tuplesPerRun);
 
-      // Phase 2: Merge sorted runs until only one remains
       int currentPass = 0;
       int remainingRuns = numInitialRuns;
 
@@ -57,14 +73,12 @@ public class ExternalSort extends SortOperator {
         currentPass++;
       }
 
-      // Open reader for final sorted file
       finalPassNumber = currentPass - 1;
       if (remainingRuns == 1) {
         finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
         currentBatch = finalResultReader.readTuples();
         currentIndex = 0;
       }
-
     } catch (IOException e) {
       throw new RuntimeException("Error during external sort", e);
     }
@@ -85,7 +99,6 @@ public class ExternalSort extends SortOperator {
       }
     }
 
-    // Write final buffer if not empty
     if (!buffer.isEmpty()) {
       writeSortedRun(buffer, 0, runNumber);
       runNumber++;
@@ -95,7 +108,7 @@ public class ExternalSort extends SortOperator {
   }
 
   private void writeSortedRun(List<Tuple> tuples, int pass, int runNumber) throws IOException {
-    Collections.sort(tuples, getComparator());
+    Collections.sort(tuples, (t1, t2) -> t1.compareTo(t2));
 
     TupleWriter writer = new TupleWriter(getTempFileName(pass, runNumber));
     try {
@@ -116,7 +129,6 @@ public class ExternalSort extends SortOperator {
       nextRunCount++;
     }
 
-    // Clean up files from this pass
     for (int i = 0; i < numRuns; i++) {
       new File(getTempFileName(passNumber, i)).delete();
     }
@@ -126,63 +138,34 @@ public class ExternalSort extends SortOperator {
 
   private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun)
       throws IOException {
-    // Initialize readers and their current tuples
     List<TupleReader> readers = new ArrayList<>();
-    List<ArrayList<int[]>> currentTuples = new ArrayList<>();
-    List<Integer> currentIndices = new ArrayList<>();
+    PriorityQueue<TupleWithReader> pq = new PriorityQueue<>();
 
     // Open readers and get initial tuples
     for (int i = 0; i < numRuns; i++) {
       TupleReader reader = new TupleReader(getTempFileName(passNumber, startRun + i));
       readers.add(reader);
       ArrayList<int[]> tuples = reader.readTuples();
-      currentTuples.add(tuples);
-      currentIndices.add(0);
-    }
-
-    // Create priority queue for merging
-    PriorityQueue<RunEntry> pq =
-        new PriorityQueue<>((a, b) -> getComparator().compare(a.tuple, b.tuple));
-
-    // Initialize priority queue
-    for (int i = 0; i < numRuns; i++) {
-      if (currentTuples.get(i) != null && !currentTuples.get(i).isEmpty()) {
-        Tuple tuple = new Tuple(currentTuples.get(i).get(0));
-        pq.offer(new RunEntry(tuple, i));
+      if (tuples != null && !tuples.isEmpty()) {
+        Tuple tuple = new Tuple(tuples.get(0));
+        pq.offer(new TupleWithReader(tuple, reader, i));
       }
     }
 
-    // Merge runs
     TupleWriter writer = new TupleWriter(getTempFileName(passNumber + 1, outputRun));
     try {
       while (!pq.isEmpty()) {
-        RunEntry entry = pq.poll();
+        TupleWithReader entry = pq.poll();
         writer.writeTuple(entry.tuple.toIntArray());
 
-        // Update index for the run we just read from
-        int runIndex = entry.runIndex;
-        int newIndex = currentIndices.get(runIndex) + 1;
-        currentIndices.set(runIndex, newIndex);
-
-        // If we've exhausted the current batch, read the next batch
-        ArrayList<int[]> currentBatch = currentTuples.get(runIndex);
-        if (newIndex >= currentBatch.size()) {
-          currentBatch = readers.get(runIndex).readTuples();
-          currentTuples.set(runIndex, currentBatch);
-          currentIndices.set(runIndex, 0);
-        }
-
-        // If we have more tuples in this run, add the next one to the queue
-        if (currentBatch != null
-            && !currentBatch.isEmpty()
-            && currentIndices.get(runIndex) < currentBatch.size()) {
-          Tuple nextTuple = new Tuple(currentBatch.get(currentIndices.get(runIndex)));
-          pq.offer(new RunEntry(nextTuple, runIndex));
+        ArrayList<int[]> nextBatch = entry.reader.readTuples();
+        if (nextBatch != null && !nextBatch.isEmpty()) {
+          Tuple nextTuple = new Tuple(nextBatch.get(0));
+          pq.offer(new TupleWithReader(nextTuple, entry.reader, entry.runIndex));
         }
       }
     } finally {
       writer.close();
-      // Close all readers
       for (TupleReader reader : readers) {
         reader.close();
       }
@@ -220,23 +203,12 @@ public class ExternalSort extends SortOperator {
     }
   }
 
-  private static class RunEntry {
-    final Tuple tuple;
-    final int runIndex;
-
-    RunEntry(Tuple tuple, int runIndex) {
-      this.tuple = tuple;
-      this.runIndex = runIndex;
-    }
-  }
-
   @Override
   protected void finalize() throws Throwable {
     try {
       if (finalResultReader != null) {
         finalResultReader.close();
       }
-      // Clean up temp directory
       File dir = new File(tempDir);
       File[] files = dir.listFiles();
       if (files != null) {
