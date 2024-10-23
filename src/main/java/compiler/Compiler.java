@@ -3,6 +3,8 @@ package compiler;
 import common.DBCatalog;
 import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
+import file_management.TupleWriter;
+
 import java.io.File;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -50,8 +52,8 @@ public class Compiler {
 
       // Create builders
       LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-      PhysicalPlanBuilder physicalPlanBuilder =
-          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), configPath, tempDir);
+      PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(),
+          configPath, tempDir);
 
       // Process each query
       int queryCount = 1;
@@ -65,11 +67,30 @@ public class Compiler {
             logicalPlan.accept(physicalPlanBuilder);
             Operator physicalPlan = physicalPlanBuilder.getResult();
 
-            // Write output to appropriate file
+            // Write binary output to appropriate file
             String outputFile = outputDir + File.separator + "query" + queryCount;
-            try (PrintStream output = new PrintStream(new File(outputFile))) {
-              physicalPlan.dump(output);
+            TupleWriter tw = null;
+            try {
+              tw = new TupleWriter(outputFile);
+              physicalPlan.dump(tw);
+            } catch (Exception e) {
+              logger.error("Error writing output for query {}: {}", queryCount, e.getMessage());
+              e.printStackTrace();
+            } finally {
+              if (tw != null) {
+                try {
+                  tw.close();
+                } catch (Exception e) {
+                  logger.error("Error closing TupleWriter for query {}: {}", queryCount, e.getMessage());
+                }
+              }
             }
+
+            // old output not in binary
+            // String outputFile = outputDir + File.separator + "query" + queryCount;
+            // try (PrintStream output = new PrintStream(new File(outputFile))) {
+            // physicalPlan.dump(output);
+
           } else {
             logger.warn("Skipping non-SELECT statement: {}", statement);
           }
@@ -81,7 +102,9 @@ public class Compiler {
         queryCount++;
       }
 
-    } catch (Exception e) {
+    } catch (
+
+    Exception e) {
       logger.error("Fatal error during compilation: {}", e.getMessage());
       e.printStackTrace();
       System.exit(1);
