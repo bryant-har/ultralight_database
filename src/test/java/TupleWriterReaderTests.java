@@ -6,6 +6,7 @@ import file_management.TupleWriter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +37,12 @@ public class TupleWriterReaderTests {
     tupleWriter.close();
 
     tupleReader = new TupleReader(TEST_FILE_PATH);
-    List<int[]> readTuples = tupleReader.readTuples();
+    List<int[]> readTuples = new ArrayList<>();
+    while (tupleReader.loadNextPage()) {
+      ArrayList<int[]> page = tupleReader.readTuplePage();
+      readTuples.addAll(page);
+    }
+    tupleReader.close();
 
     assertEquals(1, readTuples.size(), "Unexpected number of tuples read.");
     assertArrayEquals(tuple, readTuples.get(0), "Unexpected tuple read.");
@@ -57,7 +63,12 @@ public class TupleWriterReaderTests {
     tupleWriter.close();
 
     tupleReader = new TupleReader(TEST_FILE_PATH);
-    List<int[]> readTuples = tupleReader.readTuples();
+    List<int[]> readTuples = new ArrayList<>();
+    while (tupleReader.loadNextPage()) {
+      ArrayList<int[]> page = tupleReader.readTuplePage();
+      readTuples.addAll(page);
+    }
+    tupleReader.close();
 
     assertEquals(tuplesToWrite.length, readTuples.size(), "Unexpected number of tuples read.");
     for (int i = 0; i < tuplesToWrite.length; i++) {
@@ -70,7 +81,13 @@ public class TupleWriterReaderTests {
     String file_path_boats = "src/test/resources/samples/input/db_p2/data/Boats";
 
     TupleReader tupleReader = new TupleReader(file_path_boats);
-    List<int[]> tuples = tupleReader.readTuples();
+
+    List<int[]> tuples = new ArrayList<>();
+    while (tupleReader.loadNextPage()) {
+      ArrayList<int[]> page = tupleReader.readTuplePage();
+      tuples.addAll(page);
+    }
+    tupleReader.close();
 
     assertEquals(1000, tuples.size(), "Unexpected number of tuples read.");
 
@@ -99,7 +116,12 @@ public class TupleWriterReaderTests {
     tupleWriter.flushPage();
 
     tupleReader = new TupleReader(TEST_FILE_PATH);
-    List<int[]> readTuples = tupleReader.readTuples();
+    List<int[]> readTuples = new ArrayList<>();
+    while (tupleReader.loadNextPage()) {
+      ArrayList<int[]> page = tupleReader.readTuplePage();
+      readTuples.addAll(page);
+    }
+    tupleReader.close();
 
     assertEquals(tuplesToWrite.length, readTuples.size(), "Unexpected number of tuples read.");
     for (int i = 0; i < tuplesToWrite.length; i++) {

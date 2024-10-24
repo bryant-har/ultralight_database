@@ -1,6 +1,7 @@
 import file_management.TupleReader;
 import file_management.TupleWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class test_file_management {
@@ -13,7 +14,12 @@ public class test_file_management {
     TupleReader reader =
         new TupleReader(
             "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db/data/BoatsBinary");
-    List<int[]> tuples = reader.readTuples();
+      
+    List<int[]> tuples = new ArrayList<>();
+    while (reader.loadNextPage()) {
+      ArrayList<int[]> page = reader.readTuplePage();
+      tuples.addAll(page);
+    }
     for (int[] tuple : tuples) {
       for (int i : tuple) {
         System.out.print(i + " ");

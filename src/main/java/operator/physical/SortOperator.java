@@ -69,7 +69,7 @@ public class SortOperator extends Operator {
    * Inner class implementing Comparator for Tuple objects. Used for sorting tuples based on ORDER
    * BY elements.
    */
-  private class TupleComparator implements Comparator<Tuple> {
+  public class TupleComparator implements Comparator<Tuple> {
     @Override
     public int compare(Tuple t1, Tuple t2) {
       for (OrderByElement orderByElement : orderByElements) {
@@ -128,49 +128,5 @@ public class SortOperator extends Operator {
     return new ArrayList<>(sortedTuples);
   }
 
-  /**
-   * Dumps all tuples to the specified PrintStream.
-   *
-   * @param printStream The PrintStream to dump the tuples to.
-   */
-  // @Override
-  // public void dump(PrintStream printStream) {
-  // Tuple t;
-  // while ((t = this.getNextTuple()) != null) {
-  // printStream.println(t);
-  // }
-  // }
 
-  protected java.util.Comparator<Tuple> getComparator() {
-    return new java.util.Comparator<Tuple>() {
-      @Override
-      public int compare(Tuple t1, Tuple t2) {
-        for (OrderByElement orderByElement : orderByElements) {
-          Expression expr = orderByElement.getExpression();
-          if (expr instanceof Column) {
-            Column col = (Column) expr;
-            String columnName = col.getColumnName();
-
-            // Find column index in schema
-            int index = -1;
-            for (int i = 0; i < outputSchema.size(); i++) {
-              if (outputSchema.get(i).getColumnName().equals(columnName)) {
-                index = i;
-                break;
-              }
-            }
-
-            if (index != -1) {
-              int comparison =
-                  Integer.compare(t1.getElementAtIndex(index), t2.getElementAtIndex(index));
-              if (comparison != 0) {
-                return orderByElement.isAsc() ? comparison : -comparison;
-              }
-            }
-          }
-        }
-        return 0;
-      }
-    };
-  }
-}
+  };

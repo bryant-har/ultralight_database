@@ -16,13 +16,14 @@ public class ExternalSort extends SortOperator {
   private final int bufferPages;
   private TupleReader finalResultReader;
   private int finalPassNumber;
-  private ArrayList<int[]> currentBatch;
+  private ArrayList<int[]> currentBatch = new ArrayList<>();
   private int currentIndex;
 
   private static class TupleWithReader implements Comparable<TupleWithReader> {
     final Tuple tuple;
     final TupleReader reader;
     final int runIndex;
+    static Comparator<Tuple> comparator;
 
     TupleWithReader(Tuple tuple, TupleReader reader, int runIndex) {
       this.tuple = tuple;
@@ -32,7 +33,7 @@ public class ExternalSort extends SortOperator {
 
     @Override
     public int compareTo(TupleWithReader other) {
-      int comparison = tuple.compareTo(other.tuple);
+      int comparison = TupleWithReader.comparator.compare(this.tuple, other.tuple);
       // If tuples are equal, maintain stable sort by run index
       return comparison != 0 ? comparison : Integer.compare(runIndex, other.runIndex);
     }
@@ -53,6 +54,7 @@ public class ExternalSort extends SortOperator {
 
     // Create temp directory for this operator
     new File(this.tempDir).mkdirs();
+    TupleWithReader.comparator = new TupleComparator();
 
     // Perform the external sort
     performSort();
@@ -73,12 +75,11 @@ public class ExternalSort extends SortOperator {
         currentPass++;
       }
 
-      finalPassNumber = currentPass - 1;
-      if (remainingRuns == 1) {
-        finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
-        currentBatch = finalResultReader.readTuples();
-        currentIndex = 0;
-      }
+      finalPassNumber = currentPass;
+      finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
+      currentBatch.clear();
+      currentBatch = finalResultReader.readTuplePage();
+      currentIndex = 0;
     } catch (IOException e) {
       throw new RuntimeException("Error during external sort", e);
     }
@@ -92,7 +93,7 @@ public class ExternalSort extends SortOperator {
     while ((tuple = child.getNextTuple()) != null) {
       buffer.add(tuple);
 
-      if (buffer.size() >= tuplesPerRun) {
+      if (buffer.size() == tuplesPerRun) {
         writeSortedRun(buffer, 0, runNumber);
         runNumber++;
         buffer.clear();
@@ -108,7 +109,7 @@ public class ExternalSort extends SortOperator {
   }
 
   private void writeSortedRun(List<Tuple> tuples, int pass, int runNumber) throws IOException {
-    Collections.sort(tuples, (t1, t2) -> t1.compareTo(t2));
+    Collections.sort(tuples, new TupleComparator());
 
     TupleWriter writer = new TupleWriter(getTempFileName(pass, runNumber));
     try {
@@ -136,19 +137,20 @@ public class ExternalSort extends SortOperator {
     return nextRunCount;
   }
 
-  private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun)
-      throws IOException {
-    List<TupleReader> readers = new ArrayList<>();
-    PriorityQueue<TupleWithReader> pq = new PriorityQueue<>();
+  private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun) throws IOException {
+    PriorityQueue<TupleWithReader> pq = new PriorityQueue<TupleWithReader>();
+    List<TupleReader> readers = new ArrayList<>(numRuns);
+    List<Integer> tuplesLeft = new ArrayList<>(numRuns);
 
     // Open readers and get initial tuples
     for (int i = 0; i < numRuns; i++) {
       TupleReader reader = new TupleReader(getTempFileName(passNumber, startRun + i));
       readers.add(reader);
-      ArrayList<int[]> tuples = reader.readTuples();
-      if (tuples != null && !tuples.isEmpty()) {
-        Tuple tuple = new Tuple(tuples.get(0));
-        pq.offer(new TupleWithReader(tuple, reader, i));
+      reader.loadNextPage();
+      ArrayList<int[]> tuples = reader.readTuplePage();
+      tuplesLeft.add(tuples.size());
+      for (int[] tuple : tuples) {
+        pq.offer(new TupleWithReader(new Tuple(tuple), reader, i));
       }
     }
 
@@ -156,13 +158,17 @@ public class ExternalSort extends SortOperator {
     try {
       while (!pq.isEmpty()) {
         TupleWithReader entry = pq.poll();
-        writer.writeTuple(entry.tuple.toIntArray());
-
-        ArrayList<int[]> nextBatch = entry.reader.readTuples();
-        if (nextBatch != null && !nextBatch.isEmpty()) {
-          Tuple nextTuple = new Tuple(nextBatch.get(0));
-          pq.offer(new TupleWithReader(nextTuple, entry.reader, entry.runIndex));
+        tuplesLeft.set(entry.runIndex, tuplesLeft.get(entry.runIndex) - 1);
+        if (tuplesLeft.get(entry.runIndex) == 0) {
+          if (entry.reader.loadNextPage()) {
+            ArrayList<int[]> tuples = entry.reader.readTuplePage();
+            tuplesLeft.set(entry.runIndex, tuples.size());
+            for (int[] tuple : tuples) {
+              pq.offer(new TupleWithReader(new Tuple(tuple), entry.reader, entry.runIndex));
+            }
+         }
         }
+        writer.writeTuple(entry.tuple.toIntArray());
       }
     } finally {
       writer.close();
@@ -178,8 +184,14 @@ public class ExternalSort extends SortOperator {
 
   @Override
   public Tuple getNextTuple() {
-    if (currentBatch == null || currentIndex >= currentBatch.size()) {
-      currentBatch = finalResultReader.readTuples();
+    
+    if (currentBatch == null || currentIndex == currentBatch.size()) {
+      try {
+        finalResultReader.loadNextPage();
+      } catch (IOException e) {
+        throw new RuntimeException("Error loading next page", e);
+      }
+      currentBatch = finalResultReader.readTuplePage();
       currentIndex = 0;
       if (currentBatch == null || currentBatch.isEmpty()) {
         return null;
@@ -195,7 +207,7 @@ public class ExternalSort extends SortOperator {
       if (finalResultReader != null) {
         finalResultReader.close();
         finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
-        currentBatch = finalResultReader.readTuples();
+        currentBatch = finalResultReader.readTuplePage();
         currentIndex = 0;
       }
     } catch (IOException e) {

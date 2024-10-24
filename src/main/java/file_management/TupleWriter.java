@@ -15,6 +15,7 @@ public class TupleWriter {
   private int numTupleAttributes = 3;
   private List<int[]> tuples;
   private int currTuple;
+  private int currPage = 1;
 
   public TupleWriter(String filePath) throws IOException {
     File file = new File(filePath);
@@ -31,23 +32,25 @@ public class TupleWriter {
 
   public void writeTuple(int[] tuple) throws IOException {
     numTupleAttributes = tuple.length;
-    if (currTuple >= (PAGE_SIZE - 8) / (numTupleAttributes * 4)) {
+    if (8 + (currTuple+1) * numTupleAttributes * 4 >= PAGE_SIZE) {
       flushPage();
-      System.out.println("Flushed in WriteTuple");
-    } else {
-      int baseIndex = currTuple * numTupleAttributes * 4;
-      for (int i = 0; i < tuple.length; i++) {
-        buffer.putInt(baseIndex + i * 4 + 8, tuple[i]);
+    } 
+    int baseIndex = 8 + currTuple * numTupleAttributes * 4;
+    for (int i = 0; i < tuple.length; i++) {
+      if (baseIndex + i * 4 < buffer.capacity()) {
+        buffer.putInt(baseIndex + i * 4, tuple[i]);
+      } else {
+        System.out.println("fejwiofew");
       }
-      currTuple++;
-      System.out.println("Curr Tuples" + currTuple);
     }
+    currTuple++;
   }
 
   public void flushPage() throws IOException {
     buffer.putInt(0, numTupleAttributes);
     buffer.putInt(4, currTuple);
-    // buffer.flip();
+    currPage += 1;
+    currTuple = 0;
     fileChannel.write(buffer);
     actuallyClearBuffer();
   }
@@ -67,6 +70,7 @@ public class TupleWriter {
 
   public void close() throws IOException {
     flushPage();
+    // Reset position to 0 for subsequent write operations
     fileChannel.close();
   }
 }

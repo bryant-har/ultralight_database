@@ -20,18 +20,17 @@ public class TupleReader implements AutoCloseable {
     this.numTupleAttributes = 0;
     this.tuples = new ArrayList<>();
     this.numTuples = 0;
-    loadNextPage();
   }
 
-  public void loadNextPage() throws IOException {
+  public boolean loadNextPage() throws IOException {
     actuallyClearBuffer();
-
+    tuples.clear();
     int bytesReadIn = fileChannel.read(buffer);
 
     // is this logic still necessary if we have the logic below checking for numTuples == 0?
     if (bytesReadIn == -1) {
       this.numTuples = 0;
-      return;
+      return false;
     }
     buffer.flip();
 
@@ -41,9 +40,8 @@ public class TupleReader implements AutoCloseable {
     this.numTuples = buffer.getInt(4);
     // if there are no more tuples left, you are on a page with no tuples
     if (numTuples == 0) {
-      return;
+      return false;
     }
-    System.out.println("Num Tuples: " + this.numTuples);
     for (int i = 0; i < this.numTuples; i++) {
       int[] tuple = new int[this.numTupleAttributes];
       int baseIndex = i * numTupleAttributes * 4 + 8;
@@ -53,10 +51,10 @@ public class TupleReader implements AutoCloseable {
       }
       tuples.add(tuple);
     }
-    loadNextPage();
+    return true; // Page has tuples
   }
 
-  public ArrayList<int[]> readTuples() {
+  public ArrayList<int[]> readTuplePage() {
     return this.tuples;
   }
 
