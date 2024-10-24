@@ -127,6 +127,4 @@ public class SortOperator extends Operator {
     }
     return new ArrayList<>(sortedTuples);
   }
-
-
-  };
+};
