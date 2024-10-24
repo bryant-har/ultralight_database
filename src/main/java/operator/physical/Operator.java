@@ -9,16 +9,16 @@ import net.sf.jsqlparser.schema.Column;
 
 /**
  * Abstract class to represent relational operators. Every operator has a reference to an
- * outputSchema which represents the schema of the output tuples from the operator. This is a list
- * of Column objects. Each Column has an embedded Table object with the name and alias (if required)
- * fields set appropriately.
+ * outputSchema which represents the schema of the output tuples from the operator.
  */
 public abstract class Operator {
 
   protected ArrayList<Column> outputSchema;
+  protected int currentIndex; // Track current tuple index
 
   public Operator(ArrayList<Column> outputSchema) {
     this.outputSchema = outputSchema;
+    this.currentIndex = 0;
   }
 
   public ArrayList<Column> getOutputSchema() {
@@ -29,11 +29,31 @@ public abstract class Operator {
   public abstract void reset();
 
   /**
+   * Resets the operator to a specific tuple index. Default implementation throws
+   * UnsupportedOperationException. Should be overridden by operators that support index-based reset
+   * (e.g. Sort).
+   *
+   * @param index The tuple index to reset to
+   */
+  public void reset(int index) {
+    throw new UnsupportedOperationException("This operator does not support index-based reset");
+  }
+
+  /**
    * Get next tuple from operator
    *
    * @return next Tuple, or null if we are at the end
    */
   public abstract Tuple getNextTuple();
+
+  /**
+   * Gets the current index in the tuple stream.
+   *
+   * @return The current tuple index
+   */
+  public int getCurrentIndex() {
+    return currentIndex;
+  }
 
   /**
    * Collects all tuples of this operator.
@@ -46,15 +66,9 @@ public abstract class Operator {
     while ((t = getNextTuple()) != null) {
       tuples.add(t);
     }
-
     return tuples;
   }
 
-  /**
-   * Iterate through output of operator and send it all to the specified printStream)
-   *
-   * @param printStream stream to receive output, one tuple per line.
-   */
   public void dump(PrintStream printStream) {
     Tuple t;
     while ((t = this.getNextTuple()) != null) {
@@ -62,7 +76,6 @@ public abstract class Operator {
     }
   }
 
-  // dump method for binary output using TupleWriter
   public void dump(TupleWriter tw) throws Exception {
     Tuple t;
     while ((t = this.getNextTuple()) != null) {
