@@ -84,7 +84,7 @@ public class ExternalSort extends SortOperator {
       finalResultReader.close();
       currentIndex = 0;
       try {
-        finalize();
+        cleanUp();
       } catch (Throwable e) {
         throw new RuntimeException("Error during external sort");
       }
@@ -217,8 +217,7 @@ public class ExternalSort extends SortOperator {
     }
   }
 
-  @Override
-  protected void finalize() throws Throwable {
+  protected void cleanUp() throws Throwable {
     try {
       if (finalResultReader != null) {
         finalResultReader.close();
@@ -231,8 +230,8 @@ public class ExternalSort extends SortOperator {
         }
       }
       dir.delete();
-    } finally {
-      super.finalize();
+    } catch (IOException e) {
+      throw new RuntimeException("Error finalizing", e);
     }
   }
 }
