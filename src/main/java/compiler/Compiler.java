@@ -5,6 +5,7 @@ import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
 import file_management.TupleWriter;
 import java.io.File;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -79,8 +80,7 @@ public class Compiler {
                 try {
                   tw.close();
                 } catch (Exception e) {
-                  logger.error(
-                      "Error closing TupleWriter for query {}: {}", queryCount, e.getMessage());
+                  logger.error("Error closing TupleWriter for query {}: {}", queryCount, e.getMessage());
                 }
               }
             }
@@ -99,9 +99,12 @@ public class Compiler {
         }
 
         queryCount++;
+
       }
 
-    } catch (Exception e) {
+    } catch (
+
+    Exception e) {
       logger.error("Fatal error during compilation: {}", e.getMessage());
       e.printStackTrace();
       System.exit(1);
