@@ -60,7 +60,7 @@ public class P2UnitTests {
       // check correct content of tuples
       assertEquals(expectedOutput, actualOutputString, "Query " + idx + " failed");
     } else {
-      throw new UnsupportedOperationException("Only SELECT statements are supported");
+      throw new UnsupportedOperationException("Only S1ELECT statements are supported");
     }
   }
 
