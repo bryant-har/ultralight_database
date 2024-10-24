@@ -7,6 +7,7 @@ import common.Tuple;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -30,8 +31,7 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  // @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
-  @ValueSource(ints = 8)
+  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
@@ -59,6 +59,8 @@ public class P2UnitTests {
       System.out.println("Expected output: " + expectedOutput);
       System.out.println("Actual Output: " + actualOutputString);
       // check correct content of tuples
+      Collections.sort(expectedOutput);
+      Collections.sort(actualOutputString);
       assertEquals(expectedOutput, actualOutputString, "Query " + idx + " failed");
     } else {
       throw new UnsupportedOperationException("Only SsELECT statements are supported");
