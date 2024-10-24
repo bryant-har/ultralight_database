@@ -37,8 +37,9 @@ public class P2UnitTests {
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
-        logicalPlanBuilder.getTableAliases(), CONFIG_FILE, INPUT_DIR + "/temp");
+    PhysicalPlanBuilder physicalPlanBuilder =
+        new PhysicalPlanBuilder(
+            logicalPlanBuilder.getTableAliases(), CONFIG_FILE, INPUT_DIR + "/temp");
 
     Statement statement = statements.get(idx - 1);
     if (statement instanceof Select) {
@@ -48,7 +49,8 @@ public class P2UnitTests {
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
       List<String> expectedOutput = readExpectedOutput(idx);
-      List<String> actualOutputString = actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+      List<String> actualOutputString =
+          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       // check correct num of tuples
       assertEquals(
@@ -68,8 +70,7 @@ public class P2UnitTests {
   }
 
   private List<String> readExpectedOutput(int queryNumber) throws IOException {
-    String expectedFilePath = EXPECTED_DIR + "/query" + queryNumber +
-        "_humanreadable";
+    String expectedFilePath = EXPECTED_DIR + "/query" + queryNumber + "_humanreadable";
     // String expectedFilePath = EXPECTED_DIR + "/query" + queryNumber;
     return Files.readAllLines(Paths.get(expectedFilePath));
   }

@@ -2,15 +2,12 @@ package common;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
 import net.sf.jsqlparser.schema.Column;
 
-/**
- * Extracts columns from join expressions for sort-merge join.
- */
+/** Extracts columns from join expressions for sort-merge join. */
 public class ColumnExtractor extends ExpressionVisitorAdapter {
   private final List<Column> leftColumns = new ArrayList<>();
   private final List<Column> rightColumns = new ArrayList<>();
@@ -24,8 +21,8 @@ public class ColumnExtractor extends ExpressionVisitorAdapter {
 
   @Override
   public void visit(EqualsTo equalsTo) {
-    if (equalsTo.getLeftExpression() instanceof Column &&
-        equalsTo.getRightExpression() instanceof Column) {
+    if (equalsTo.getLeftExpression() instanceof Column
+        && equalsTo.getRightExpression() instanceof Column) {
 
       Column leftCol = (Column) equalsTo.getLeftExpression();
       Column rightCol = (Column) equalsTo.getRightExpression();

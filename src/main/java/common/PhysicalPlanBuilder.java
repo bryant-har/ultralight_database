@@ -6,19 +6,17 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import join_algorithms.BNLJ;
+import join_algorithms.SMJ;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.OrderByElement;
-import net.sf.jsqlparser.statement.select.SelectItem;
 import operator.logical.*;
 import operator.physical.*;
-import join_algorithms.BNLJ;
-import join_algorithms.SMJ;
 
 /**
- * The PhysicalPlanBuilder class transforms a logical query plan into a physical
- * query plan.
- * It reads configuration settings to determine which physical operators to use.
+ * The PhysicalPlanBuilder class transforms a logical query plan into a physical query plan. It
+ * reads configuration settings to determine which physical operators to use.
  */
 public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   private Operator result;
@@ -29,13 +27,9 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   private final int sortBufferPages; // Buffer pages for external sort (if applicable)
   private final String tempDir; // Directory for external sort temp files
 
-  /**
-   * Constructs a PhysicalPlanBuilder by reading configuration from a file.
-   */
-  public PhysicalPlanBuilder(
-      Map<String, String> tableAliases,
-      String configPath,
-      String tempDir) throws IOException {
+  /** Constructs a PhysicalPlanBuilder by reading configuration from a file. */
+  public PhysicalPlanBuilder(Map<String, String> tableAliases, String configPath, String tempDir)
+      throws IOException {
 
     this.tableAliases = tableAliases;
     this.tempDir = tempDir;
@@ -45,12 +39,14 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
       // Read join configuration
       String[] joinConfig = reader.readLine().trim().split("\\s+");
       this.joinType = Integer.parseInt(joinConfig[0]);
-      this.joinBufferPages = (joinType == 1 && joinConfig.length > 1) ? Integer.parseInt(joinConfig[1]) : 0;
+      this.joinBufferPages =
+          (joinType == 1 && joinConfig.length > 1) ? Integer.parseInt(joinConfig[1]) : 0;
 
       // Read sort configuration
       String[] sortConfig = reader.readLine().trim().split("\\s+");
       this.sortType = Integer.parseInt(sortConfig[0]);
-      this.sortBufferPages = (sortType == 1 && sortConfig.length > 1) ? Integer.parseInt(sortConfig[1]) : 0;
+      this.sortBufferPages =
+          (sortType == 1 && sortConfig.length > 1) ? Integer.parseInt(sortConfig[1]) : 0;
 
       // Validate configuration
       if (joinType < 0 || joinType > 2) {
@@ -124,8 +120,14 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
         Operator sortedRight = createSortOperator(rightChild, rightOrderBy);
 
         // Create SMJ with sort columns
-        result = new SMJ(sortedLeft, sortedRight, op.getCondition(),
-            tableAliases, leftColumns, rightColumns);
+        result =
+            new SMJ(
+                sortedLeft,
+                sortedRight,
+                op.getCondition(),
+                tableAliases,
+                leftColumns,
+                rightColumns);
         break;
     }
   }
@@ -154,12 +156,12 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
       child = createSortOperator(child, orderByElements);
     }
 
-    result = new DuplicateElementEliminationOperator(
-        new ArrayList<>(child.getOutputSchema()),
-        child);
+    result =
+        new DuplicateElementEliminationOperator(new ArrayList<>(child.getOutputSchema()), child);
   }
 
-  private void extractJoinColumns(Expression joinCondition,
+  private void extractJoinColumns(
+      Expression joinCondition,
       List<Column> leftColumns,
       List<Column> rightColumns,
       Operator leftChild,
@@ -167,18 +169,21 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
 
     // Handle AND conditions
     if (joinCondition instanceof net.sf.jsqlparser.expression.operators.conditional.AndExpression) {
-      net.sf.jsqlparser.expression.operators.conditional.AndExpression and = (net.sf.jsqlparser.expression.operators.conditional.AndExpression) joinCondition;
+      net.sf.jsqlparser.expression.operators.conditional.AndExpression and =
+          (net.sf.jsqlparser.expression.operators.conditional.AndExpression) joinCondition;
       extractJoinColumns(and.getLeftExpression(), leftColumns, rightColumns, leftChild, rightChild);
-      extractJoinColumns(and.getRightExpression(), leftColumns, rightColumns, leftChild, rightChild);
+      extractJoinColumns(
+          and.getRightExpression(), leftColumns, rightColumns, leftChild, rightChild);
       return;
     }
 
     // Handle equals conditions
     if (joinCondition instanceof net.sf.jsqlparser.expression.operators.relational.EqualsTo) {
-      net.sf.jsqlparser.expression.operators.relational.EqualsTo equals = (net.sf.jsqlparser.expression.operators.relational.EqualsTo) joinCondition;
+      net.sf.jsqlparser.expression.operators.relational.EqualsTo equals =
+          (net.sf.jsqlparser.expression.operators.relational.EqualsTo) joinCondition;
 
-      if (equals.getLeftExpression() instanceof Column &&
-          equals.getRightExpression() instanceof Column) {
+      if (equals.getLeftExpression() instanceof Column
+          && equals.getRightExpression() instanceof Column) {
 
         Column leftCol = (Column) equals.getLeftExpression();
         Column rightCol = (Column) equals.getRightExpression();
@@ -212,8 +217,8 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     String colName = col.getColumnName();
 
     for (Column schemaCol : schema) {
-      if (schemaCol.getTable().getName().equals(tableName) &&
-          schemaCol.getColumnName().equals(colName)) {
+      if (schemaCol.getTable().getName().equals(tableName)
+          && schemaCol.getColumnName().equals(colName)) {
         return true;
       }
     }
@@ -222,10 +227,7 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
 
   private Operator createSortOperator(Operator child, List<OrderByElement> orderByElements) {
     if (sortType == 0) {
-      return new SortOperator(
-          new ArrayList<>(child.getOutputSchema()),
-          child,
-          orderByElements);
+      return new SortOperator(new ArrayList<>(child.getOutputSchema()), child, orderByElements);
     } else {
       return new ExternalSort(
           new ArrayList<>(child.getOutputSchema()),

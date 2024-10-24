@@ -6,10 +6,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
 import operator.physical.Operator;
 
 public class SMJ extends Operator {
@@ -70,7 +68,8 @@ public class SMJ extends Operator {
       String tableName = col.getTable().getName();
       for (int i = 0; i < leftChild.getOutputSchema().size(); i++) {
         Column schemaCol = leftChild.getOutputSchema().get(i);
-        if (schemaCol.getColumnName().equals(colName) && schemaCol.getTable().getName().equals(tableName)) {
+        if (schemaCol.getColumnName().equals(colName)
+            && schemaCol.getTable().getName().equals(tableName)) {
           leftOrder.add(i);
           break;
         }
@@ -82,7 +81,8 @@ public class SMJ extends Operator {
       String tableName = col.getTable().getName();
       for (int i = 0; i < rightChild.getOutputSchema().size(); i++) {
         Column schemaCol = rightChild.getOutputSchema().get(i);
-        if (schemaCol.getColumnName().equals(colName) && schemaCol.getTable().getName().equals(tableName)) {
+        if (schemaCol.getColumnName().equals(colName)
+            && schemaCol.getTable().getName().equals(tableName)) {
           rightOrder.add(i);
           break;
         }
@@ -113,7 +113,6 @@ public class SMJ extends Operator {
       }
       return 0;
     }
-
   }
 
   @Override

@@ -78,8 +78,16 @@ public class ExternalSort extends SortOperator {
       finalPassNumber = currentPass;
       finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
       currentBatch.clear();
-      currentBatch = finalResultReader.readTuplePage();
+      while (finalResultReader.loadNextPage()) {
+        currentBatch.addAll(finalResultReader.readTuplePage());
+      }
+      finalResultReader.close();
       currentIndex = 0;
+      try {
+        finalize();
+      } catch (Throwable e) {
+        throw new RuntimeException("Error during external sort");
+      }
     } catch (IOException e) {
       throw new RuntimeException("Error during external sort", e);
     }
@@ -137,7 +145,8 @@ public class ExternalSort extends SortOperator {
     return nextRunCount;
   }
 
-  private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun) throws IOException {
+  private void mergeRuns(int passNumber, int startRun, int numRuns, int outputRun)
+      throws IOException {
     PriorityQueue<TupleWithReader> pq = new PriorityQueue<TupleWithReader>();
     List<TupleReader> readers = new ArrayList<>(numRuns);
     List<Integer> tuplesLeft = new ArrayList<>(numRuns);
@@ -166,7 +175,7 @@ public class ExternalSort extends SortOperator {
             for (int[] tuple : tuples) {
               pq.offer(new TupleWithReader(new Tuple(tuple), entry.reader, entry.runIndex));
             }
-         }
+          }
         }
         writer.writeTuple(entry.tuple.toIntArray());
       }
@@ -184,30 +193,23 @@ public class ExternalSort extends SortOperator {
 
   @Override
   public Tuple getNextTuple() {
-    
-    if (currentBatch == null || currentIndex == currentBatch.size()) {
-      try {
-        finalResultReader.loadNextPage();
-      } catch (IOException e) {
-        throw new RuntimeException("Error loading next page", e);
-      }
-      currentBatch = finalResultReader.readTuplePage();
-      currentIndex = 0;
-      if (currentBatch == null || currentBatch.isEmpty()) {
-        return null;
-      }
+    if (currentIndex >= currentBatch.size()) {
+      return null;
+    } else {
+      return new Tuple(currentBatch.get(currentIndex++));
     }
-
-    return new Tuple(currentBatch.get(currentIndex++));
   }
 
   @Override
   public void reset() {
     try {
       if (finalResultReader != null) {
-        finalResultReader.close();
         finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
-        currentBatch = finalResultReader.readTuplePage();
+        currentBatch.clear();
+        while (finalResultReader.loadNextPage()) {
+          currentBatch.addAll(finalResultReader.readTuplePage());
+        }
+        finalResultReader.close();
         currentIndex = 0;
       }
     } catch (IOException e) {

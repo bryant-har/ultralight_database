@@ -14,7 +14,7 @@ public class test_file_management {
     TupleReader reader =
         new TupleReader(
             "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db/data/BoatsBinary");
-      
+
     List<int[]> tuples = new ArrayList<>();
     while (reader.loadNextPage()) {
       ArrayList<int[]> page = reader.readTuplePage();

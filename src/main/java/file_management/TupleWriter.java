@@ -32,9 +32,9 @@ public class TupleWriter {
 
   public void writeTuple(int[] tuple) throws IOException {
     numTupleAttributes = tuple.length;
-    if (8 + (currTuple+1) * numTupleAttributes * 4 >= PAGE_SIZE) {
+    if (8 + (currTuple + 1) * numTupleAttributes * 4 >= PAGE_SIZE) {
       flushPage();
-    } 
+    }
     int baseIndex = 8 + currTuple * numTupleAttributes * 4;
     for (int i = 0; i < tuple.length; i++) {
       if (baseIndex + i * 4 < buffer.capacity()) {
