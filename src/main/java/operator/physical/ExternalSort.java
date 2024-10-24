@@ -202,19 +202,7 @@ public class ExternalSort extends SortOperator {
 
   @Override
   public void reset() {
-    try {
-      if (finalResultReader != null) {
-        finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
-        currentBatch.clear();
-        while (finalResultReader.loadNextPage()) {
-          currentBatch.addAll(finalResultReader.readTuplePage());
-        }
-        finalResultReader.close();
-        currentIndex = 0;
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("Error resetting reader", e);
-    }
+    currentIndex = 0;
   }
 
   protected void cleanUp() throws Throwable {
