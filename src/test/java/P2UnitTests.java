@@ -15,7 +15,6 @@ import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.Select;
 import operator.logical.LogicalOperator;
 import operator.physical.Operator;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,7 +34,7 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = { 8, 9, 14 })
+  @ValueSource(ints = {8, 9, 14})
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
