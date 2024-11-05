@@ -4,7 +4,6 @@ import java.io.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class TupleReader implements AutoCloseable {
   int PAGE_SIZE = 4096;
@@ -17,7 +16,6 @@ public class TupleReader implements AutoCloseable {
   private ArrayList<int[]> tuples;
   private ArrayList<int[]> metaDataArrayList;
 
-
   public TupleReader(String filePath) throws IOException {
     FileInputStream fileInputStream = new FileInputStream(filePath);
     this.fileChannel = fileInputStream.getChannel();
@@ -25,7 +23,7 @@ public class TupleReader implements AutoCloseable {
     this.numTupleAttributes = 0;
     this.tuples = new ArrayList<>();
 
-    //This metadata keeps track of the references used by indexes
+    // This metadata keeps track of the references used by indexes
     this.metaDataArrayList = new ArrayList<>();
     this.numTuples = 0;
     this.currPage = 0;
@@ -67,7 +65,6 @@ public class TupleReader implements AutoCloseable {
       int[] metaDataForCurrTuple = {currPage, currTupleOnPage};
       metaDataArrayList.add(metaDataForCurrTuple);
       currTupleOnPage += 1;
-
     }
     loadNextPage();
   }
@@ -75,6 +72,7 @@ public class TupleReader implements AutoCloseable {
   public ArrayList<int[]> readTuples() {
     return this.tuples;
   }
+
   public ArrayList<int[]> readMetaData() {
     return this.metaDataArrayList;
   }

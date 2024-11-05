@@ -5,8 +5,6 @@ import java.io.*;
 import java.nio.*;
 import java.util.*;
 
-import javax.management.relation.Relation;
-
 public class BulkLoader {
 
   private int d; // order of the tree
@@ -22,7 +20,7 @@ public class BulkLoader {
 
   public BulkLoader(String indexInfoFilePath, String outputFileName) throws IOException {
     List<RelationInfo> relations = parseIndexInfoFile(indexInfoFilePath);
-     
+
     // we process only one rn
     RelationInfo relation = relations.get(0);
     this.relationName = relation.relationName;
@@ -30,7 +28,7 @@ public class BulkLoader {
     this.isClustered = relation.isClustered;
     this.d = relation.d;
     scanRelation(relationName, col);
-    
+
     this.raf = new RandomAccessFile(outputFileName, "rw");
 
     dataEntries = new ArrayList<>();
@@ -76,35 +74,33 @@ public class BulkLoader {
   public void scanRelation(String relationName, String col) {
     String tableName = "";
     try (TupleReader reader = new TupleReader(tableName)) {
-      
+
       List<int[]> tuples = reader.readTuples();
-      //this contains the references to which pages each tuple is on, data for tuples[1] is @ metaDataForTuples[1] 
+      // this contains the references to which pages each tuple is on, data for tuples[1] is @
+      // metaDataForTuples[1]
       List<int[]> metaDataForTuples = reader.readMetaData();
 
       HashMap<Integer, List<int[]>> indexes = new HashMap<>();
 
-
-      int colIndex = 1 ;
-      //todo, we need to convert this.col to the index of the col, we get this data from scehma 
-      for(int i = 0; i< tuples.size(); i++){
-        //add to hashmap  (tupe, metadata)
-        if(indexes.get(i) != null){
+      int colIndex = 1;
+      // todo, we need to convert this.col to the index of the col, we get this data from scehma
+      for (int i = 0; i < tuples.size(); i++) {
+        // add to hashmap  (tupe, metadata)
+        if (indexes.get(i) != null) {
           indexes.get(i).add(metaDataForTuples.get(i));
-        } else{
-          indexes.put(tuples.get(i)[colIndex], List.of(metaDataForTuples.get(i)));  
+        } else {
+          indexes.put(tuples.get(i)[colIndex], List.of(metaDataForTuples.get(i)));
         }
-
       }
       Set<Integer> keys = indexes.keySet();
-       //sort by keys
+      // sort by keys
       List<Integer> sortedKeys = new ArrayList<>(keys);
       Collections.sort(sortedKeys);
-       
-      for (int i : sortedKeys){
+
+      for (int i : sortedKeys) {
         DataEntry temp = new DataEntry(i, indexes.get(i));
         dataEntries.add(temp);
       }
-
 
     } catch (IOException e) {
       e.printStackTrace();
@@ -249,8 +245,6 @@ public class DataEntry implements Comparable<DataEntry> {
     return Integer.compare(this.key, other.key);
   }
 }
-
-
 
 private class TreeNode {
   private boolean isLeaf;
