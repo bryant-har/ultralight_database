@@ -74,14 +74,38 @@ public class BulkLoader {
   }
 
   public void scanRelation(String relationName, String col) {
-    try (TupleReader reader = new TupleReader(relationPath)) {
+    String tableName = "";
+    try (TupleReader reader = new TupleReader(tableName)) {
+      
       List<int[]> tuples = reader.readTuples();
-      for (int[] tuple : tuples) {
-        // Assuming the first element is the key
-        int key = tuple[0];
-        DataEntry entry = new DataEntry(key, tuple);
-        dataEntries.add(entry);
+      //this contains the references to which pages each tuple is on, data for tuples[1] is @ metaDataForTuples[1] 
+      List<int[]> metaDataForTuples = reader.readMetaData();
+
+      HashMap<Integer, List<int[]>> indexes = new HashMap<>();
+
+
+      int colIndex = 1 ;
+      //todo, we need to convert this.col to the index of the col, we get this data from scehma 
+      for(int i = 0; i< tuples.size(); i++){
+        //add to hashmap  (tupe, metadata)
+        if(indexes.get(i) != null){
+          indexes.get(i).add(metaDataForTuples.get(i));
+        } else{
+          indexes.put(tuples.get(i)[colIndex], List.of(metaDataForTuples.get(i)));  
+        }
+
       }
+      Set<Integer> keys = indexes.keySet();
+       //sort by keys
+      List<Integer> sortedKeys = new ArrayList<>(keys);
+      Collections.sort(sortedKeys);
+       
+      for (int i : sortedKeys){
+        DataEntry temp = new DataEntry(i, indexes.get(i));
+        dataEntries.add(temp);
+      }
+
+
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -213,11 +237,11 @@ public class BulkLoader {
 
 public class DataEntry implements Comparable<DataEntry> {
   int key;
-  List<RID> rids;
+  List<int[]> rids;
 
-  public DataEntry(int key, int[] tuple) {
+  public DataEntry(int key, List<int[]> rids) {
     this.key = key;
-    this.rids = new ArrayList<>();
+    this.rids = rids;
   }
 
   @Override
@@ -226,15 +250,7 @@ public class DataEntry implements Comparable<DataEntry> {
   }
 }
 
-private class RID {
-  int pageId;
-  int tupleId;
 
-  RID(int pageId, int tupleId) {
-    this.pageId = pageId;
-    this.tupleId = tupleId;
-  }
-}
 
 private class TreeNode {
   private boolean isLeaf;
