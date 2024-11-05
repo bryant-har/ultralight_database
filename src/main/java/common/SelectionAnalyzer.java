@@ -1,11 +1,11 @@
 package common;
 
-import net.sf.jsqlparser.expression.*;
-import net.sf.jsqlparser.expression.operators.relational.*;
-import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
-import net.sf.jsqlparser.schema.Column;
 import java.util.ArrayList;
 import java.util.List;
+import net.sf.jsqlparser.expression.*;
+import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
+import net.sf.jsqlparser.expression.operators.relational.*;
+import net.sf.jsqlparser.schema.Column;
 
 public class SelectionAnalyzer extends ExpressionVisitorAdapter {
   private String indexedColumn;
@@ -103,7 +103,8 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
     processComparisonOperation(expr, false, true);
   }
 
-  private void processComparisonOperation(ComparisonOperator expr, boolean isLower, boolean inclusive) {
+  private void processComparisonOperation(
+      ComparisonOperator expr, boolean isLower, boolean inclusive) {
     Expression left = expr.getLeftExpression();
     Expression right = expr.getRightExpression();
 

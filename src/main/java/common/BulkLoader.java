@@ -121,6 +121,8 @@ public class BulkLoader {
         entriesToAdd = k / 2;
       }
 
+      // Add the entries to the leaf node, and add the leaf node to the list
+      // addEntry method handles adding the key to the node
       TreeNode leafNode = new TreeNode(true);
       for (int j = 0; j < entriesToAdd && i < totalEntries; j++, i++) {
         leafNode.addEntry(dataEntries.get(i));
@@ -229,41 +231,41 @@ public class BulkLoader {
 
     return indexNodes;
   }
-}
 
-public class DataEntry implements Comparable<DataEntry> {
-  int key;
-  List<int[]> rids;
+  public class DataEntry implements Comparable<DataEntry> {
+    int key;
+    List<int[]> rids;
 
-  public DataEntry(int key, List<int[]> rids) {
-    this.key = key;
-    this.rids = rids;
-  }
-
-  @Override
-  public int compareTo(DataEntry other) {
-    return Integer.compare(this.key, other.key);
-  }
-}
-
-private class TreeNode {
-  private boolean isLeaf;
-  private List<Integer> keys;
-  private List<TreeNode> children;
-  private List<DataEntry> entries;
-
-  public TreeNode(boolean isLeaf) {
-    this.isLeaf = isLeaf;
-    this.keys = new ArrayList<>();
-    this.children = new ArrayList<>();
-    this.entries = new ArrayList<>();
-  }
-
-  public void addEntry(DataEntry entry) {
-    if (!isLeaf) {
-      throw new IllegalStateException("Cant add entry to non-leaf nodes");
+    public DataEntry(int key, List<int[]> rids) {
+      this.key = key;
+      this.rids = rids;
     }
-    entries.add(entry);
-    keys.add(entry.key);
+
+    @Override
+    public int compareTo(DataEntry other) {
+      return Integer.compare(this.key, other.key);
+    }
+  }
+
+  public class TreeNode {
+    private boolean isLeaf;
+    private List<Integer> keys;
+    private List<TreeNode> children;
+    private List<DataEntry> entries;
+
+    public TreeNode(boolean isLeaf) {
+      this.isLeaf = isLeaf;
+      this.keys = new ArrayList<>();
+      this.children = new ArrayList<>();
+      this.entries = new ArrayList<>();
+    }
+
+    public void addEntry(DataEntry entry) {
+      if (!isLeaf) {
+        throw new IllegalStateException("Cant add entry to non-leaf nodes");
+      }
+      entries.add(entry);
+      keys.add(entry.key);
+    }
   }
 }

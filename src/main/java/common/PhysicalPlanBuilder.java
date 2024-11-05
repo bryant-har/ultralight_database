@@ -18,7 +18,8 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   private DBCatalog dbCatalog;
   private String dbDirectory;
 
-  public PhysicalPlanBuilder(Map<String, String> tableAliases, boolean useIndexes, String dbDirectory) {
+  public PhysicalPlanBuilder(
+      Map<String, String> tableAliases, boolean useIndexes, String dbDirectory) {
     this.tableAliases = tableAliases;
     this.useIndexes = useIndexes;
     this.dbCatalog = DBCatalog.getInstance();
@@ -61,13 +62,14 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
         if (analyzer.hasIndexConditions()) {
           // Create an IndexScanOperator with ArrayList<Column>
           ArrayList<Column> scanSchema = new ArrayList<>(scanOp.getSchema());
-          result = new IndexScanOperator(
-              scanSchema,
-              tableName,
-              indexFile,
-              isClustered,
-              analyzer.getLowKey(),
-              analyzer.getHighKey());
+          result =
+              new IndexScanOperator(
+                  scanSchema,
+                  tableName,
+                  indexFile,
+                  isClustered,
+                  analyzer.getLowKey(),
+                  analyzer.getHighKey());
 
           // If there are remaining conditions, add a SelectOperator on top
           List<Expression> remainingConditions = analyzer.getRemainingConditions();
