@@ -133,15 +133,45 @@ public class BulkLoader {
     return leafNodes;
   }
 
-  private TreeNode buildAndSerialize() throws IOException {
+  private void buildAndSerialize() throws IOException {
     List<TreeNode> currentLevel = buildLeafNodes();
+    int currentAddress = 0; 
+    int rootAddress = 0;
 
-    while (currentLevel.size() > 1){
-      currentLevel = buildIndexNodes(currentLevel);
+
+    while (!currentLevel.isEmpty()){
+
+      List<TreeNode> nextLevel = new ArrayList<>()
+      for (TreeNode node : currentLevel) {
+        serializeNode(node, currentAddress);
+        node.address = currentAddress;
+        currentAddress++;
+      }
+      if(currentLevel.size() == 1 ){
+        //this is the root 
+        rootAddress = currentLevel.get(0).address;
+        break;
+      }
+      //otherwise recursively serialize the nodes
+      nextLevel = buildIndexNodes(currentLevel);
+      currentLevel = nextLevel;
+
+      
     }
+    writeHeaderPage(rootAddress, numberofLeaves);
 
-    return currentLevel.get(0);
+  }
 
+  private void writeHeaderPage(int rootAddress, int numberofLeaves) throws IOException {
+    raf.seek(0);
+    raf.writeInt(rootAddress);
+    raf.writeInt(numberofLeaves);
+    raf.writeInt(d);
+    //fill the rest wth zeros 
+    //start at 3 because we wrote 3 data points 
+    for (int i = 3; i< PAGE_SIZE /4; i++){
+      raf.writeInt(0);
+    }
   }
 
   // private List<Integer> serializeNodes(List<TreeNode> nodes) throws IOException {
@@ -255,12 +285,14 @@ public class BulkLoader {
     private List<Integer> keys;
     private List<TreeNode> children;
     private List<DataEntry> entries;
+    int address;
 
     public TreeNode(boolean isLeaf) {
       this.isLeaf = isLeaf;
       this.keys = new ArrayList<>();
       this.children = new ArrayList<>();
       this.entries = new ArrayList<>();
+      this.address = -1;
     }
 
     public void addEntry(DataEntry entry) {
