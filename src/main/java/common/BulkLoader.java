@@ -84,15 +84,13 @@ public class BulkLoader {
       HashMap<Integer, List<int[]>> indexes = new HashMap<>();
 
       int colIndex = 1;
-      // todo, we need to convert this.col to the index of the col, we get this data from scehma
+      // todo, hardcoded we need to convert this.col to the index of the col, we get this data from scehma
       for (int i = 0; i < tuples.size(); i++) {
-        // add to hashmap  (tupe, metadata)
-        if (indexes.get(i) != null) {
-          indexes.get(i).add(metaDataForTuples.get(i));
-        } else {
-          indexes.put(tuples.get(i)[colIndex], new ArrayList<>(List.of(metaDataForTuples.get(i))));
-        }
-      }
+        int key = tuples.get(i)[colIndex];
+        List<int[]> ridList = indexes.getOrDefault(key, new ArrayList<>());
+        ridList.add(metaDataForTuples.get(i));
+        indexes.put(key, ridList);
+    }
       Set<Integer> keys = indexes.keySet();
       // sort by keys
       List<Integer> sortedKeys = new ArrayList<>(keys);
@@ -128,7 +126,11 @@ public class BulkLoader {
       TreeNode leafNode = new TreeNode(true);
       for (int j = 0; j < entriesToAdd && i < totalEntries; j++, i++) {
         leafNode.addEntry(dataEntries.get(i));
-        System.out.println("Adding entry: " + dataEntries.get(i).key);
+        System.out.println("Adding entry: " + dataEntries.get(i).key );
+        for (int[] rid : dataEntries.get(i).rids) {
+          System.out.println("RID: " + rid[0] + ", " + rid[1]);
+        }
+
       }
       leafNodes.add(leafNode);
     }
@@ -143,6 +145,7 @@ public class BulkLoader {
     int rootAddress = 0;
 
     while (!currentLevel.isEmpty()) {
+      System.out.println("Next Level of the Tree");
 
       List<TreeNode> nextLevel = new ArrayList<>();
       for (TreeNode node : currentLevel) {
@@ -182,9 +185,11 @@ public class BulkLoader {
     // does this need to be a long?
     raf.seek(address * PAGE_SIZE);
     if (node.isLeaf) {
+      raf.writeInt(0);
+      raf.writeInt(node.entries.size());
       for (DataEntry entry : node.entries) {
-        raf.writeInt(0);
-        raf.writeInt(node.entries.size());
+        raf.writeInt(entry.key); // Write the key
+        raf.writeInt(entry.rids.size()); // Write number of RIDs for this key
         // Write the serialized representation of the data netry in the node, in order
         for (int[] rid : entry.rids) {
           raf.writeInt(rid[0]); // pageId
@@ -215,37 +220,39 @@ public class BulkLoader {
 
   private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes) {
     List<TreeNode> indexNodes = new ArrayList<>();
-    int d = childNodes.size();
+    int totalChildren = childNodes.size();
     int i = 0;
 
-    while (i < d) {
-
-      // should it be 2d -1??
-      int nodesToAdd = 2 * d + 1;
-      int keysToAdd = 2 * d;
-      int remainingChildren = d - i;
-      if (keysToAdd > 2 * d && keysToAdd < 3 * d) {
+    while (i < totalChildren) {
+      int remainingChildren = totalChildren - i;
+      int nodesToAdd; 
+      int keysToAdd; 
+      if (remainingChildren > 2 * d + 1 && remainingChildren < 3 * d + 2) {
+        // case for last two nodes 
         nodesToAdd = remainingChildren / 2;
         keysToAdd = nodesToAdd - 1;
-      }
-
-      TreeNode indexNode = new TreeNode(false);
-      for (int j = 0; j < nodesToAdd && i < d; j++) {
-        TreeNode child = childNodes.get(i);
-        indexNode.children.add(child);
-
-        // Add key if it's not the last child
-        if (j < keysToAdd) {
-          indexNode.keys.add(child.keys.get(0));
-        }
-
-        i++;
-      }
-
-      indexNodes.add(indexNode);
+    } else {
+        nodesToAdd = 2 * d + 1;
+        keysToAdd = 2 * d;
     }
 
-    return indexNodes;
+    TreeNode indexNode = new TreeNode(false);
+
+    for (int j = 0; j < nodesToAdd && i < totalChildren; j++) {
+      TreeNode child = childNodes.get(i);
+      indexNode.children.add(child);
+
+      if (j < keysToAdd) {
+          indexNode.keys.add(child.keys.get(0));
+      }
+
+      i++;
+  }
+
+  indexNodes.add(indexNode);
+}
+
+return indexNodes;
   }
 
   public class DataEntry implements Comparable<DataEntry> {
