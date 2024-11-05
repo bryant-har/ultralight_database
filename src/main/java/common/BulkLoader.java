@@ -1,179 +1,259 @@
 package common;
 
+import file_management.TupleReader;
 import java.io.*;
+import java.nio.*;
 import java.util.*;
 
-import javax.swing.tree.TreeNode;
-
-import apple.laf.JRSUIUtils.Tree;
-import file_management.TupleReader;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
+import javax.management.relation.Relation;
 
 public class BulkLoader {
 
-    private int d; // order of the tree
-    private String relationName;
-    private boolean isClustered;
-    private List<DataEntry> dataEntries;
-    private int nextAddress;
+  private int d; // order of the tree
+  private String relationName;
+  private boolean isClustered;
+  private List<DataEntry> dataEntries;
+  private int nextAddress;
+  private String outputFileName;
+  private String col;
+  private RandomAccessFile raf;
+  private ByteBuffer buffer;
+  private int PAGE_SIZE = 4096;
 
-    public BulkLoader(String indexInfoFilePath) throws IOException {
-        parseIndexInfoFile(indexInfoFilePath);
-        dataEntries = new ArrayList<>();
-        nextAddress = 0;
-    }
-
-    private void parseIndexInfoFile(String indexInfoFilePath) throws IOException {
-        try (BufferedReader br = new BufferedReader(new FileReader(indexInfoFilePath))) {
-            String line = br.readLine();
-            if (line != null) {
-                String[] parts = line.split(" ");
-                relationName = parts[0];
-
-                // cluster and d of tree
-                isClustered = parts[2].equals("1");
-                d = Integer.parseInt(parts[3]);
-            }
-        }
-    }
-
-    public void scanRelation(String relationPath) {
-        try (TupleReader reader = new TupleReader(relationPath)) {
-            List<int[]> tuples = reader.readTuples();
-            for (int[] tuple : tuples) {
-                // Assuming the first element is the key
-                int key = tuple[0];
-                DataEntry entry = new DataEntry(key, tuple);
-                dataEntries.add(entry);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    private List<TreeNode> buildLeafNodes() {
-        List<TreeNode> leafNodes = new ArrayList<>();
-        int totalEntries = dataEntries.size();
-        int i = 0;
-
-        while (i < totalEntries) {
-            int entriesToAdd = 2 * d;
-
-            // special case of last two nodes if needed
-            int k = totalEntries - i;
-            if (k > 2 * d && k < 3 * d) {
-                entriesToAdd = k / 2;
-            }
-
-            TreeNode leafNode = new TreeNode(true);
-            for (int j = 0; j < entriesToAdd && i < totalEntries; j++, i++) {
-                leafNode.addEntry(dataEntries.get(i));
-            }
-            leafNodes.add(leafNode);
-        }
-
-        return leafNodes;
-    }
-
-    private void buildAndSerialize(){
-        List<TreeNode> leafNodes = buildLeafNodes();
-        List<TreeNode> indexNodes = buildIndexNodes(leafNodes);
-
-        //serialize the nodes
-        serializeNodes(indexNodes);
-
-
-    }
-
-    private List<Integer> serializeNodes(List<TreeNode> nodes) throws IOException{
-        List<Integer> addresses = new ArrayList<>();
-
-       for(TreeNode node : nodes){
-        int address = nextAddress; 
-        addresses.add(address);
-        serializeNode(nodes, address);
-        nextAddress++;
-
-       }
-
-        return addresses;
-    }
-    private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes){
-        List<TreeNode> indexNodes = new ArrayList<>();
-        int d = childNodes.size();
-        int i = 0;
-
-        while (i < d) {
-
-            //should it be 2d -1??
-            int nodesToAdd = 2 * d + 1; 
-            int keysToAdd = 2 * d;
-            int remainingChildren = d - i;
-            if (keysToAdd > 2 * d && keysToAdd < 3 * d) {
-                nodesToAdd = remainingChildren / 2;
-                keysToAdd = nodesToAdd - 1;
-            }
-
-           TreeNode indexNode = new TreeNode(false);
-            for (int j = 0; j < nodesToAdd && i < d; j++) {
-                TreeNode child = childNodes.get(i);
-                indexNode.children.add(child);
-                
-                // Add key if it's not the last child
-                if (j < keysToAdd) {
-                    indexNode.keys.add(child.keys.get(0));
-                }
-                
-                i++;
-            }
+  public BulkLoader(String indexInfoFilePath, String outputFileName) throws IOException {
+    List<RelationInfo> relations = parseIndexInfoFile(indexInfoFilePath);
+     
+    // we process only one rn
+    RelationInfo relation = relations.get(0);
+    this.relationName = relation.relationName;
+    this.col = relation.indexName;
+    this.isClustered = relation.isClustered;
+    this.d = relation.d;
+    scanRelation(relationName, col);
     
-            indexNodes.add(indexNode);
+    this.raf = new RandomAccessFile(outputFileName, "rw");
+
+    dataEntries = new ArrayList<>();
+    nextAddress = 0;
+  }
+
+  private List<RelationInfo> parseIndexInfoFile(String indexInfoFilePath) throws IOException {
+    List<RelationInfo> relations = new ArrayList<>();
+
+    try (BufferedReader br = new BufferedReader(new FileReader(indexInfoFilePath))) {
+      String line;
+      while ((line = br.readLine()) != null) {
+        String[] parts = line.split(" ");
+        if (parts.length >= 4) {
+          String relationName = parts[0];
+          String indexName = parts[1];
+          boolean isClustered = parts[2].equals("1");
+          int d = Integer.parseInt(parts[3]);
+
+          RelationInfo relationInfo = new RelationInfo(relationName, indexName, isClustered, d);
+          relations.add(relationInfo);
         }
-    
-        return indexNodes;
+      }
     }
 
-    public class DataEntry implements Comparable<DataEntry> {
-        int key;
-        int[] tuple;
+    return relations;
+  }
 
-        public DataEntry(int key, int[] tuple) {
-            this.key = key;
-            this.tuple = tuple;
-        }
+  private static class RelationInfo {
+    String relationName;
+    String indexName;
+    boolean isClustered;
+    int d;
 
-        @Override
-        public int compareTo(DataEntry other) {
-            return Integer.compare(this.key, other.key);
-        }
+    public RelationInfo(String relationName, String indexName, boolean isClustered, int d) {
+      this.relationName = relationName;
+      this.indexName = indexName;
+      this.isClustered = isClustered;
+      this.d = d;
+    }
+  }
+
+  public void scanRelation(String relationName, String col) {
+    try (TupleReader reader = new TupleReader(relationPath)) {
+      List<int[]> tuples = reader.readTuples();
+      for (int[] tuple : tuples) {
+        // Assuming the first element is the key
+        int key = tuple[0];
+        DataEntry entry = new DataEntry(key, tuple);
+        dataEntries.add(entry);
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private List<TreeNode> buildLeafNodes() {
+    List<TreeNode> leafNodes = new ArrayList<>();
+    int totalEntries = dataEntries.size();
+    int i = 0;
+
+    while (i < totalEntries) {
+      int entriesToAdd = 2 * d;
+
+      // special case of last two nodes if needed
+      int k = totalEntries - i;
+      if (k > 2 * d && k < 3 * d) {
+        entriesToAdd = k / 2;
+      }
+
+      TreeNode leafNode = new TreeNode(true);
+      for (int j = 0; j < entriesToAdd && i < totalEntries; j++, i++) {
+        leafNode.addEntry(dataEntries.get(i));
+      }
+      leafNodes.add(leafNode);
     }
 
-    private class TreeNode {
-        private boolean isLeaf;
-        private List<Integer> keys;
-        private List<TreeNode> children;
-        private List<DataEntry> entries;
+    return leafNodes;
+  }
 
-        public TreeNode(boolean isLeaf) {
-            this.isLeaf = isLeaf;
-            this.keys = new ArrayList<>();
-            this.children = new ArrayList<>();
-            this.entries = new ArrayList<>();
+  private void buildAndSerialize() throws IOException {
+    List<TreeNode> leafNodes = buildLeafNodes();
+    List<TreeNode> indexNodes = buildIndexNodes(leafNodes);
+
+    // serialize the nodes
+    serializeNodes(indexNodes);
+  }
+
+  // private List<Integer> serializeNodes(List<TreeNode> nodes) throws IOException {
+  //   List<Integer> addresses = new ArrayList<>();
+
+  //   for (TreeNode node : nodes) {
+  //     int address = nextAddress;
+  //     addresses.add(address);
+  //     serializeNode(nodes, address);
+  //     nextAddress++;
+  //   }
+
+  //   return addresses;
+  // }
+
+  // private void serializeNode(TreeNode node, int address) throws IOException {
+  //   raf.seek((long) address * PAGE_SIZE);
+
+  //   //leaf noodes
+  //   if (node.isLeaf) {
+  //     raf.writeInt(0);
+  //     raf.writeInt(node.entries.size());
+
+  //     for (DataEntry entry : node.entries) {
+  //       raf.writeInt(entry.key);
+  //       raf.writeInt(entry.tuple.length);
+  //       for (int i = 0; i < entry.tuple.length; i++) {
+  //         raf.writeInt(entry.tuple[i]);
+
+  //       }
+  //     };
+  //         raf.writeInt(rid.tupleId);
+  //       }
+  //     }
+  //   } else {
+  //     // index nodes
+  //     raf.writeInt(1);
+  //     raf.writeInt(node.keys.size());
+
+  //     //write
+  //     for (int key : node.keys) {
+  //       raf.writeInt(key);
+  //     }
+
+  //     // addredsses
+  //     for (int childAddress : node.childAddresses) {
+  //       raf.writeInt(childAddress);
+  //     }
+  //   }
+  //   // fill 0s
+  //   long currentPosition = raf.getFilePointer();
+  //   long endOfPage = ((long) (address + 1) * PAGE_SIZE);
+  //   while (currentPosition < endOfPage) {
+  //     raf.writeByte(0);
+  //     currentPosition++;
+  //   }}
+  // }
+
+  private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes) {
+    List<TreeNode> indexNodes = new ArrayList<>();
+    int d = childNodes.size();
+    int i = 0;
+
+    while (i < d) {
+
+      // should it be 2d -1??
+      int nodesToAdd = 2 * d + 1;
+      int keysToAdd = 2 * d;
+      int remainingChildren = d - i;
+      if (keysToAdd > 2 * d && keysToAdd < 3 * d) {
+        nodesToAdd = remainingChildren / 2;
+        keysToAdd = nodesToAdd - 1;
+      }
+
+      TreeNode indexNode = new TreeNode(false);
+      for (int j = 0; j < nodesToAdd && i < d; j++) {
+        TreeNode child = childNodes.get(i);
+        indexNode.children.add(child);
+
+        // Add key if it's not the last child
+        if (j < keysToAdd) {
+          indexNode.keys.add(child.keys.get(0));
         }
 
-        public void addEntry(DataEntry entry) {
-            if (!isLeaf) {
-                throw new IllegalStateException("Cant add entry to non-leaf nodes");
-            }
-            entries.add(entry);
-            keys.add(entry.key);
-        }
+        i++;
+      }
 
-       
+      indexNodes.add(indexNode);
     }
 
+    return indexNodes;
+  }
+}
+
+public class DataEntry implements Comparable<DataEntry> {
+  int key;
+  List<RID> rids;
+
+  public DataEntry(int key, int[] tuple) {
+    this.key = key;
+    this.rids = new ArrayList<>();
+  }
+
+  @Override
+  public int compareTo(DataEntry other) {
+    return Integer.compare(this.key, other.key);
+  }
+}
+
+private class RID {
+  int pageId;
+  int tupleId;
+
+  RID(int pageId, int tupleId) {
+    this.pageId = pageId;
+    this.tupleId = tupleId;
+  }
+}
+
+private class TreeNode {
+  private boolean isLeaf;
+  private List<Integer> keys;
+  private List<TreeNode> children;
+  private List<DataEntry> entries;
+
+  public TreeNode(boolean isLeaf) {
+    this.isLeaf = isLeaf;
+    this.keys = new ArrayList<>();
+    this.children = new ArrayList<>();
+    this.entries = new ArrayList<>();
+  }
+
+  public void addEntry(DataEntry entry) {
+    if (!isLeaf) {
+      throw new IllegalStateException("Cant add entry to non-leaf nodes");
+    }
+    entries.add(entry);
+    keys.add(entry.key);
+  }
 }

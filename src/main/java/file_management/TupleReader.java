@@ -4,6 +4,7 @@ import java.io.*;
 import java.nio.*;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class TupleReader implements AutoCloseable {
   int PAGE_SIZE = 4096;
@@ -11,7 +12,11 @@ public class TupleReader implements AutoCloseable {
   private FileChannel fileChannel;
   private int numTuples;
   private int numTupleAttributes;
+  private int currPage;
+  private int currTupleOnPage;
   private ArrayList<int[]> tuples;
+  private ArrayList<int[]> metaDataArrayList;
+
 
   public TupleReader(String filePath) throws IOException {
     FileInputStream fileInputStream = new FileInputStream(filePath);
@@ -19,12 +24,19 @@ public class TupleReader implements AutoCloseable {
     this.buffer = ByteBuffer.allocate(PAGE_SIZE);
     this.numTupleAttributes = 0;
     this.tuples = new ArrayList<>();
+
+    //This metadata keeps track of the references used by indexes
+    this.metaDataArrayList = new ArrayList<>();
     this.numTuples = 0;
+    this.currPage = 0;
+    int currTupleOnPage = 0;
     loadNextPage();
   }
 
   public void loadNextPage() throws IOException {
     actuallyClearBuffer();
+    currPage += 1;
+    currTupleOnPage = 0;
 
     int bytesReadIn = fileChannel.read(buffer);
 
@@ -52,12 +64,19 @@ public class TupleReader implements AutoCloseable {
         tuple[j] = buffer.getInt(baseIndex + j * 4);
       }
       tuples.add(tuple);
+      int[] metaDataForCurrTuple = {currPage, currTupleOnPage};
+      metaDataArrayList.add(metaDataForCurrTuple);
+      currTupleOnPage += 1;
+
     }
     loadNextPage();
   }
 
   public ArrayList<int[]> readTuples() {
     return this.tuples;
+  }
+  public ArrayList<int[]> readMetaData() {
+    return this.metaDataArrayList;
   }
 
   @Override
