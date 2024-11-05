@@ -27,11 +27,12 @@ public class BulkLoader {
     this.col = relation.indexName;
     this.isClustered = relation.isClustered;
     this.d = relation.d;
+    dataEntries = new ArrayList<>();
+
     scanRelation(relationName, col);
 
     this.raf = new RandomAccessFile(outputFileName, "rw");
 
-    dataEntries = new ArrayList<>();
     nextAddress = 0;
   }
 
@@ -72,8 +73,8 @@ public class BulkLoader {
   }
 
   public void scanRelation(String relationName, String col) {
-    String tableName = "";
-    try (TupleReader reader = new TupleReader(tableName)) {
+    String fileName = "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db_p3/data/" + relationName;
+    try (TupleReader reader = new TupleReader(fileName)) {
 
       List<int[]> tuples = reader.readTuples();
       // this contains the references to which pages each tuple is on, data for tuples[1] is @
@@ -89,7 +90,7 @@ public class BulkLoader {
         if (indexes.get(i) != null) {
           indexes.get(i).add(metaDataForTuples.get(i));
         } else {
-          indexes.put(tuples.get(i)[colIndex], List.of(metaDataForTuples.get(i)));
+          indexes.put(tuples.get(i)[colIndex], new ArrayList<>(List.of(metaDataForTuples.get(i))));
         }
       }
       Set<Integer> keys = indexes.keySet();
@@ -109,6 +110,7 @@ public class BulkLoader {
 
   private List<TreeNode> buildLeafNodes() {
     List<TreeNode> leafNodes = new ArrayList<>();
+    
     int totalEntries = dataEntries.size();
     int i = 0;
 
@@ -126,6 +128,7 @@ public class BulkLoader {
       TreeNode leafNode = new TreeNode(true);
       for (int j = 0; j < entriesToAdd && i < totalEntries; j++, i++) {
         leafNode.addEntry(dataEntries.get(i));
+        System.out.println("Adding entry: " + dataEntries.get(i).key);
       }
       leafNodes.add(leafNode);
     }
@@ -133,102 +136,82 @@ public class BulkLoader {
     return leafNodes;
   }
 
-  private void buildAndSerialize() throws IOException {
+  public void buildAndSerialize() throws IOException {
     List<TreeNode> currentLevel = buildLeafNodes();
-    int currentAddress = 0; 
+    int currentAddress = 0;
+    int numberOfLeaves = currentLevel.size();
     int rootAddress = 0;
 
+    while (!currentLevel.isEmpty()) {
 
-    while (!currentLevel.isEmpty()){
-
-      List<TreeNode> nextLevel = new ArrayList<>()
+      List<TreeNode> nextLevel = new ArrayList<>();
       for (TreeNode node : currentLevel) {
         serializeNode(node, currentAddress);
         node.address = currentAddress;
         currentAddress++;
       }
-      if(currentLevel.size() == 1 ){
-        //this is the root 
+      if (currentLevel.size() == 1) {
+        // this is the root
         rootAddress = currentLevel.get(0).address;
         break;
       }
-      //otherwise recursively serialize the nodes
+      // otherwise recursively serialize the nodes
       nextLevel = buildIndexNodes(currentLevel);
       currentLevel = nextLevel;
-
-      
     }
-    writeHeaderPage(rootAddress, numberofLeaves);
 
+    writeHeaderPage(rootAddress, numberOfLeaves);
   }
 
   private void writeHeaderPage(int rootAddress, int numberofLeaves) throws IOException {
     raf.seek(0);
     raf.writeInt(rootAddress);
+    System.out.println("Hedaer Page - RootAddress: " + rootAddress);
     raf.writeInt(numberofLeaves);
+    System.out.println("Header Page - Number of Leaves: " + numberofLeaves);
     raf.writeInt(d);
-    //fill the rest wth zeros 
-    //start at 3 because we wrote 3 data points 
-    for (int i = 3; i< PAGE_SIZE /4; i++){
+    System.out.println("Header Page - d: " + d);
+    // fill the rest wth zeros
+    // start at 3 because we wrote 3 data points
+    for (int i = 3; i < PAGE_SIZE / 4; i++) {
       raf.writeInt(0);
     }
   }
 
-  // private List<Integer> serializeNodes(List<TreeNode> nodes) throws IOException {
-  //   List<Integer> addresses = new ArrayList<>();
+  private void serializeNode(TreeNode node, int address) throws IOException {
+    // does this need to be a long?
+    raf.seek(address * PAGE_SIZE);
+    if (node.isLeaf) {
+      for (DataEntry entry : node.entries) {
+        raf.writeInt(0);
+        raf.writeInt(node.entries.size());
+        // Write the serialized representation of the data netry in the node, in order
+        for (int[] rid : entry.rids) {
+          raf.writeInt(rid[0]); // pageId
+          raf.writeInt(rid[1]); // tupleId
+        }
+      }
 
-  //   for (TreeNode node : nodes) {
-  //     int address = nextAddress;
-  //     addresses.add(address);
-  //     serializeNode(nodes, address);
-  //     nextAddress++;
-  //   }
+    } else {
+      // this is a index node
+      raf.writeInt(1);
+      raf.writeInt(node.keys.size());
+      for (int key : node.keys) {
+        raf.writeInt(key);
+      }
+      for (TreeNode child : node.children) {
+        raf.writeInt(child.address);
+      }
+    }
 
-  //   return addresses;
-  // }
-
-  // private void serializeNode(TreeNode node, int address) throws IOException {
-  //   raf.seek((long) address * PAGE_SIZE);
-
-  //   //leaf noodes
-  //   if (node.isLeaf) {
-  //     raf.writeInt(0);
-  //     raf.writeInt(node.entries.size());
-
-  //     for (DataEntry entry : node.entries) {
-  //       raf.writeInt(entry.key);
-  //       raf.writeInt(entry.tuple.length);
-  //       for (int i = 0; i < entry.tuple.length; i++) {
-  //         raf.writeInt(entry.tuple[i]);
-
-  //       }
-  //     };
-  //         raf.writeInt(rid.tupleId);
-  //       }
-  //     }
-  //   } else {
-  //     // index nodes
-  //     raf.writeInt(1);
-  //     raf.writeInt(node.keys.size());
-
-  //     //write
-  //     for (int key : node.keys) {
-  //       raf.writeInt(key);
-  //     }
-
-  //     // addredsses
-  //     for (int childAddress : node.childAddresses) {
-  //       raf.writeInt(childAddress);
-  //     }
-  //   }
-  //   // fill 0s
-  //   long currentPosition = raf.getFilePointer();
-  //   long endOfPage = ((long) (address + 1) * PAGE_SIZE);
-  //   while (currentPosition < endOfPage) {
-  //     raf.writeByte(0);
-  //     currentPosition++;
-  //   }}
-  // }
+    // for both types of nodes, we will the rest of the page with zeros
+    long currentPosition = raf.getFilePointer();
+    long end = ((long) (address + 1) * PAGE_SIZE);
+    while (currentPosition < end) {
+      raf.writeByte(0);
+      currentPosition++;
+    }
+  }
 
   private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes) {
     List<TreeNode> indexNodes = new ArrayList<>();

@@ -51,7 +51,7 @@ public class Compiler {
       // Create builders
       LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
       PhysicalPlanBuilder physicalPlanBuilder =
-          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases());
+          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), false, "");
 
       // Process each query
       int queryCount = 1;

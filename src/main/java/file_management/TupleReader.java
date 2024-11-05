@@ -53,7 +53,6 @@ public class TupleReader implements AutoCloseable {
     if (numTuples == 0) {
       return;
     }
-    System.out.println("Num Tuples: " + this.numTuples);
     for (int i = 0; i < this.numTuples; i++) {
       int[] tuple = new int[this.numTupleAttributes];
       int baseIndex = i * numTupleAttributes * 4 + 8;
