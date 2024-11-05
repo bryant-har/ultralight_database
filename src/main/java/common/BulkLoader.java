@@ -133,12 +133,15 @@ public class BulkLoader {
     return leafNodes;
   }
 
-  private void buildAndSerialize() throws IOException {
-    List<TreeNode> leafNodes = buildLeafNodes();
-    List<TreeNode> indexNodes = buildIndexNodes(leafNodes);
+  private TreeNode buildAndSerialize() throws IOException {
+    List<TreeNode> currentLevel = buildLeafNodes();
 
-    // serialize the nodes
-    serializeNodes(indexNodes);
+    while (currentLevel.size() > 1){
+      currentLevel = buildIndexNodes(currentLevel);
+    }
+
+    return currentLevel.get(0);
+
   }
 
   // private List<Integer> serializeNodes(List<TreeNode> nodes) throws IOException {
