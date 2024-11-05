@@ -140,6 +140,7 @@ public class BulkLoader {
 
   public void buildAndSerialize() throws IOException {
     List<TreeNode> currentLevel = buildLeafNodes();
+    System.out.println("ad of leaf nodes: " + currentLevel.get(0).address);
     int currentAddress = 0;
     int numberOfLeaves = currentLevel.size();
     int rootAddress = 0;
@@ -183,7 +184,7 @@ public class BulkLoader {
 
   private void serializeNode(TreeNode node, int address) throws IOException {
     // does this need to be a long?
-    raf.seek(address * PAGE_SIZE);
+    raf.seek((address + 1) * PAGE_SIZE);
     if (node.isLeaf) {
       raf.writeInt(0);
       raf.writeInt(node.entries.size());
@@ -220,7 +221,7 @@ public class BulkLoader {
 
   private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes) {
     List<TreeNode> indexNodes = new ArrayList<>();
-    int totalChildren = childNodes.size();
+    int totalChildren = childNodes.size() ;
     int i = 0;
 
     while (i < totalChildren) {

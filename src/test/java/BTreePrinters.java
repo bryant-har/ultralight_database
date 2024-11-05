@@ -39,7 +39,7 @@ public static void printIndexFileContents(String fileName) throws IOException {
                     System.out.println();
                 }
             } else if (nodeType == 1) {
-                
+
                 System.out.println("\nIndex Node at page " + pageNumber + ":");
                 int numKeys = raf.readInt();
                 System.out.print("Keys: ");
