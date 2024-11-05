@@ -5,7 +5,12 @@ import java.util.*;
 
 import javax.swing.tree.TreeNode;
 
+import apple.laf.JRSUIUtils.Tree;
 import file_management.TupleReader;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 
 public class BulkLoader {
 
@@ -13,10 +18,12 @@ public class BulkLoader {
     private String relationName;
     private boolean isClustered;
     private List<DataEntry> dataEntries;
+    private int nextAddress;
 
     public BulkLoader(String indexInfoFilePath) throws IOException {
         parseIndexInfoFile(indexInfoFilePath);
         dataEntries = new ArrayList<>();
+        nextAddress = 0;
     }
 
     private void parseIndexInfoFile(String indexInfoFilePath) throws IOException {
@@ -33,7 +40,7 @@ public class BulkLoader {
         }
     }
 
-    public void scanAndSortRelation(String relationPath) {
+    public void scanRelation(String relationPath) {
         try (TupleReader reader = new TupleReader(relationPath)) {
             List<int[]> tuples = reader.readTuples();
             for (int[] tuple : tuples) {
@@ -72,6 +79,64 @@ public class BulkLoader {
         return leafNodes;
     }
 
+    private void buildAndSerialize(){
+        List<TreeNode> leafNodes = buildLeafNodes();
+        List<TreeNode> indexNodes = buildIndexNodes(leafNodes);
+
+        //serialize the nodes
+        serializeNodes(indexNodes);
+
+
+    }
+
+    private List<Integer> serializeNodes(List<TreeNode> nodes) throws IOException{
+        List<Integer> addresses = new ArrayList<>();
+
+       for(TreeNode node : nodes){
+        int address = nextAddress; 
+        addresses.add(address);
+        serializeNode(nodes, address);
+        nextAddress++;
+
+       }
+
+        return addresses;
+    }
+    private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes){
+        List<TreeNode> indexNodes = new ArrayList<>();
+        int d = childNodes.size();
+        int i = 0;
+
+        while (i < d) {
+
+            //should it be 2d -1??
+            int nodesToAdd = 2 * d + 1; 
+            int keysToAdd = 2 * d;
+            int remainingChildren = d - i;
+            if (keysToAdd > 2 * d && keysToAdd < 3 * d) {
+                nodesToAdd = remainingChildren / 2;
+                keysToAdd = nodesToAdd - 1;
+            }
+
+           TreeNode indexNode = new TreeNode(false);
+            for (int j = 0; j < nodesToAdd && i < d; j++) {
+                TreeNode child = childNodes.get(i);
+                indexNode.children.add(child);
+                
+                // Add key if it's not the last child
+                if (j < keysToAdd) {
+                    indexNode.keys.add(child.keys.get(0));
+                }
+                
+                i++;
+            }
+    
+            indexNodes.add(indexNode);
+        }
+    
+        return indexNodes;
+    }
+
     public class DataEntry implements Comparable<DataEntry> {
         int key;
         int[] tuple;
@@ -107,6 +172,8 @@ public class BulkLoader {
             entries.add(entry);
             keys.add(entry.key);
         }
+
+       
     }
 
 }
