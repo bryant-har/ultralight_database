@@ -4,7 +4,7 @@ import common.DBCatalog;
 import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
 import file_management.TupleWriter;
-import java.io.File;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
@@ -20,18 +20,24 @@ public class Compiler {
   private static String inputDir;
   private static String outputDir;
   private static String tempDir;
+  private static boolean buildIndexes;
+  private static boolean evaluateQueries;
+  private static boolean useIndexes;
 
   public static void main(String[] args) {
-    // Validate command line arguments
-    if (args.length != 3) {
-      logger.error("Usage: java -jar program.jar inputdir outputdir tempdir");
+    // Validate command line arguments - now expects config file path
+    if (args.length != 1) {
+      logger.error("Usage: java -jar program.jar config_file_path");
       System.exit(1);
     }
 
-    // Set directories from command line arguments
-    inputDir = args[0];
-    outputDir = args[1];
-    tempDir = args[2];
+    // Read configuration from file
+    try {
+      readConfig(args[0]);
+    } catch (IOException e) {
+      logger.error("Error reading configuration file: " + e.getMessage());
+      System.exit(1);
+    }
 
     // Verify required directories and files exist
     verifyDirectoryStructure();
@@ -40,18 +46,31 @@ public class Compiler {
     DBCatalog.getInstance().setDataDirectory(inputDir + File.separator + "db");
 
     try {
+      // If indexes need to be built, do that first
+      if (buildIndexes) {
+        buildIndexes();
+      }
+
+      // If queries should not be evaluated, exit here
+      if (!evaluateQueries) {
+        logger.info("Index building completed. Query evaluation disabled.");
+        return;
+      }
+
+      // Read plan builder configuration
+      String configPath = inputDir + File.separator + "plan_builder_config.txt";
+      useIndexes = readPlanBuilderConfig(configPath);
+
       // Read queries from queries.sql
       String queriesPath = inputDir + File.separator + "queries.sql";
       String queriesContent = Files.readString(Paths.get(queriesPath));
       Statements statements = CCJSqlParserUtil.parseStatements(queriesContent);
 
-      // Read physical plan builder configuration
-      String configPath = inputDir + File.separator + "plan_builder_config.txt";
-
       // Create builders
       LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
+      String dbPath = inputDir + File.separator + "db";
       PhysicalPlanBuilder physicalPlanBuilder =
-          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), false, "");
+          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), useIndexes, dbPath);
 
       // Process each query
       int queryCount = 1;
@@ -65,7 +84,7 @@ public class Compiler {
             logicalPlan.accept(physicalPlanBuilder);
             Operator physicalPlan = physicalPlanBuilder.getResult();
 
-            // Write binary output to appropriate file
+            // Write binary output
             String outputFile = outputDir + File.separator + "query" + queryCount;
             TupleWriter tw = null;
             try {
@@ -84,14 +103,8 @@ public class Compiler {
                 }
               }
             }
-
-            // old output not in binary
-            // String outputFile = outputDir + File.separator + "query" + queryCount;
-            // try (PrintStream output = new PrintStream(new File(outputFile))) {
-            // physicalPlan.dump(output);
-
           } else {
-            logger.warn("Skipping non-SELEC1T statement: {}", statement);
+            logger.warn("Skipping non-SELECT statement: {}", statement);
           }
         } catch (Exception e) {
           logger.error("Error processing query {}: {}", queryCount, e.getMessage());
@@ -108,6 +121,66 @@ public class Compiler {
     }
   }
 
+  private static void readConfig(String configPath) throws IOException {
+    try (BufferedReader reader = new BufferedReader(new FileReader(configPath))) {
+      inputDir = reader.readLine();
+      outputDir = reader.readLine();
+      tempDir = reader.readLine();
+      buildIndexes = reader.readLine().equals("1");
+      evaluateQueries = reader.readLine().equals("1");
+    }
+  }
+
+  private static boolean readPlanBuilderConfig(String configPath) throws IOException {
+    try (BufferedReader reader = new BufferedReader(new FileReader(configPath))) {
+      reader.readLine(); // Skip first line
+      reader.readLine(); // Skip second line
+      return reader.readLine().equals("1"); // Third line indicates whether to use indexes
+    }
+  }
+
+  private static void buildIndexes() throws IOException {
+    logger.info("Building indexes...");
+
+    // Read index_info.txt to determine which indexes to build
+    String indexInfoPath = inputDir + File.separator + "db" + File.separator + "index_info.txt";
+
+    // Create indexes directory if it doesn't exist
+    File indexesDir = new File(inputDir + File.separator + "db" + File.separator + "indexes");
+    if (!indexesDir.exists()) {
+      indexesDir.mkdirs();
+    }
+
+    try (BufferedReader reader = new BufferedReader(new FileReader(indexInfoPath))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        String[] parts = line.split("\\s+");
+        if (parts.length >= 4) {
+          String tableName = parts[0];
+          String columnName = parts[1];
+          boolean isClustered = parts[2].equals("1");
+          int order = Integer.parseInt(parts[3]);
+
+          // Build the index for this table
+          String outputFile = indexesDir.getPath() + File.separator + tableName + "." + columnName;
+
+          // Create and use BulkLoader to build the index
+          try {
+            common.BulkLoader loader = new common.BulkLoader(indexInfoPath, outputFile);
+            loader.buildAndSerialize();
+            logger.info("Built index for {}.{}", tableName, columnName);
+          } catch (Exception e) {
+            logger.error(
+                "Error building index for {}.{}: {}", tableName, columnName, e.getMessage());
+            e.printStackTrace();
+          }
+        }
+      }
+    }
+
+    logger.info("Index building completed.");
+  }
+
   private static void verifyDirectoryStructure() {
     // Verify input directory exists
     File inputDirFile = new File(inputDir);
@@ -122,6 +195,7 @@ public class Compiler {
     File dbDir = new File(inputDir, "db");
     File dataDir = new File(dbDir, "data");
     File schemaFile = new File(dbDir, "schema.txt");
+    File indexInfoFile = new File(dbDir, "index_info.txt");
 
     if (!queriesFile.exists()) {
       logger.error("queries.sql not found in input directory");
@@ -141,6 +215,10 @@ public class Compiler {
     }
     if (!schemaFile.exists()) {
       logger.error("schema.txt not found in db directory");
+      System.exit(1);
+    }
+    if (!indexInfoFile.exists()) {
+      logger.error("index_info.txt not found in db directory");
       System.exit(1);
     }
 

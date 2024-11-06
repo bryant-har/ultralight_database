@@ -6,7 +6,6 @@ import java.nio.*;
 import java.util.*;
 
 public class BulkLoader {
-
   private int d; // order of the tree
   private String relationName;
   private boolean isClustered;
@@ -32,7 +31,6 @@ public class BulkLoader {
     scanRelation(relationName, col);
 
     this.raf = new RandomAccessFile(outputFileName, "rw");
-
     nextAddress = 0;
   }
 
@@ -73,26 +71,29 @@ public class BulkLoader {
   }
 
   public void scanRelation(String relationName, String col) {
-    String fileName = "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db_p3/data/" + relationName;
-    try (TupleReader reader = new TupleReader(fileName)) {
+    String fileName = "src/test/resources/samples/input/db_p2/data/" + relationName;
+    System.out.println("Reading data from: " + fileName);
 
+    try (TupleReader reader = new TupleReader(fileName)) {
       List<int[]> tuples = reader.readTuples();
-      // this contains the references to which pages each tuple is on, data for tuples[1] is @
-      // metaDataForTuples[1]
       List<int[]> metaDataForTuples = reader.readMetaData();
+
+      System.out.println("Number of tuples read: " + tuples.size());
+      if (!tuples.isEmpty()) {
+        System.out.println("First tuple: " + Arrays.toString(tuples.get(0)));
+      }
 
       HashMap<Integer, List<int[]>> indexes = new HashMap<>();
 
-      int colIndex = 1;
-      // todo, hardcoded we need to convert this.col to the index of the col, we get this data from scehma
+      int colIndex = 1; // hardcoded for now
       for (int i = 0; i < tuples.size(); i++) {
         int key = tuples.get(i)[colIndex];
         List<int[]> ridList = indexes.getOrDefault(key, new ArrayList<>());
         ridList.add(metaDataForTuples.get(i));
         indexes.put(key, ridList);
-    }
+      }
+
       Set<Integer> keys = indexes.keySet();
-      // sort by keys
       List<Integer> sortedKeys = new ArrayList<>(keys);
       Collections.sort(sortedKeys);
 
@@ -102,13 +103,14 @@ public class BulkLoader {
       }
 
     } catch (IOException e) {
+      System.err.println("Error reading file: " + fileName);
       e.printStackTrace();
     }
   }
 
   private List<TreeNode> buildLeafNodes() {
     List<TreeNode> leafNodes = new ArrayList<>();
-    
+
     int totalEntries = dataEntries.size();
     int i = 0;
 
@@ -121,16 +123,13 @@ public class BulkLoader {
         entriesToAdd = k / 2;
       }
 
-      // Add the entries to the leaf node, and add the leaf node to the list
-      // addEntry method handles adding the key to the node
       TreeNode leafNode = new TreeNode(true);
       for (int j = 0; j < entriesToAdd && i < totalEntries; j++, i++) {
         leafNode.addEntry(dataEntries.get(i));
-        System.out.println("Adding entry: " + dataEntries.get(i).key );
+        System.out.println("Adding entry: " + dataEntries.get(i).key);
         for (int[] rid : dataEntries.get(i).rids) {
           System.out.println("RID: " + rid[0] + ", " + rid[1]);
         }
-
       }
       leafNodes.add(leafNode);
     }
@@ -140,7 +139,7 @@ public class BulkLoader {
 
   public void buildAndSerialize() throws IOException {
     List<TreeNode> currentLevel = buildLeafNodes();
-    System.out.println("ad of leaf nodes: " + currentLevel.get(0).address);
+    System.out.println("Address of leaf nodes: " + currentLevel.get(0).address);
     int currentAddress = 0;
     int numberOfLeaves = currentLevel.size();
     int rootAddress = 0;
@@ -167,40 +166,36 @@ public class BulkLoader {
     writeHeaderPage(rootAddress, numberOfLeaves);
   }
 
-  private void writeHeaderPage(int rootAddress, int numberofLeaves) throws IOException {
+  private void writeHeaderPage(int rootAddress, int numberOfLeaves) throws IOException {
     raf.seek(0);
     raf.writeInt(rootAddress);
-    System.out.println("Hedaer Page - RootAddress: " + rootAddress);
-    raf.writeInt(numberofLeaves);
-    System.out.println("Header Page - Number of Leaves: " + numberofLeaves);
+    System.out.println("Header Page - RootAddress: " + rootAddress);
+    raf.writeInt(numberOfLeaves);
+    System.out.println("Header Page - Number of Leaves: " + numberOfLeaves);
     raf.writeInt(d);
     System.out.println("Header Page - d: " + d);
-    // fill the rest wth zeros
-    // start at 3 because we wrote 3 data points
+    // fill the rest with zeros
     for (int i = 3; i < PAGE_SIZE / 4; i++) {
       raf.writeInt(0);
     }
   }
 
   private void serializeNode(TreeNode node, int address) throws IOException {
-    // does this need to be a long?
     raf.seek((address + 1) * PAGE_SIZE);
     if (node.isLeaf) {
-      raf.writeInt(0);
+      raf.writeInt(0); // leaf node flag
       raf.writeInt(node.entries.size());
       for (DataEntry entry : node.entries) {
-        raf.writeInt(entry.key); // Write the key
-        raf.writeInt(entry.rids.size()); // Write number of RIDs for this key
-        // Write the serialized representation of the data netry in the node, in order
+        raf.writeInt(entry.key);
+        raf.writeInt(entry.rids.size());
         for (int[] rid : entry.rids) {
           raf.writeInt(rid[0]); // pageId
           raf.writeInt(rid[1]); // tupleId
         }
       }
-
     } else {
-      // this is a index node
-      raf.writeInt(1);
+      // this is an index node
+      raf.writeInt(1); // index node flag
       raf.writeInt(node.keys.size());
       for (int key : node.keys) {
         raf.writeInt(key);
@@ -210,9 +205,9 @@ public class BulkLoader {
       }
     }
 
-    // for both types of nodes, we will the rest of the page with zeros
+    // Fill the rest of the page with zeros
     long currentPosition = raf.getFilePointer();
-    long end = ((long) (address + 1) * PAGE_SIZE);
+    long end = ((long) (address + 2) * PAGE_SIZE);
     while (currentPosition < end) {
       raf.writeByte(0);
       currentPosition++;
@@ -221,39 +216,39 @@ public class BulkLoader {
 
   private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes) {
     List<TreeNode> indexNodes = new ArrayList<>();
-    int totalChildren = childNodes.size() ;
+    int totalChildren = childNodes.size();
     int i = 0;
 
     while (i < totalChildren) {
       int remainingChildren = totalChildren - i;
-      int nodesToAdd; 
-      int keysToAdd; 
+      int nodesToAdd;
+      int keysToAdd;
       if (remainingChildren > 2 * d + 1 && remainingChildren < 3 * d + 2) {
-        // case for last two nodes 
+        // case for last two nodes
         nodesToAdd = remainingChildren / 2;
         keysToAdd = nodesToAdd - 1;
-    } else {
+      } else {
         nodesToAdd = 2 * d + 1;
         keysToAdd = 2 * d;
-    }
-
-    TreeNode indexNode = new TreeNode(false);
-
-    for (int j = 0; j < nodesToAdd && i < totalChildren; j++) {
-      TreeNode child = childNodes.get(i);
-      indexNode.children.add(child);
-
-      if (j < keysToAdd) {
-          indexNode.keys.add(child.keys.get(0));
       }
 
-      i++;
-  }
+      TreeNode indexNode = new TreeNode(false);
 
-  indexNodes.add(indexNode);
-}
+      for (int j = 0; j < nodesToAdd && i < totalChildren; j++) {
+        TreeNode child = childNodes.get(i);
+        indexNode.children.add(child);
 
-return indexNodes;
+        if (j < keysToAdd) {
+          indexNode.keys.add(child.keys.get(0));
+        }
+
+        i++;
+      }
+
+      indexNodes.add(indexNode);
+    }
+
+    return indexNodes;
   }
 
   public class DataEntry implements Comparable<DataEntry> {
@@ -288,7 +283,7 @@ return indexNodes;
 
     public void addEntry(DataEntry entry) {
       if (!isLeaf) {
-        throw new IllegalStateException("Cant add entry to non-leaf nodes");
+        throw new IllegalStateException("Can't add entry to non-leaf nodes");
       }
       entries.add(entry);
       keys.add(entry.key);
