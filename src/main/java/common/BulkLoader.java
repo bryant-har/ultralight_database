@@ -89,7 +89,7 @@ public class BulkLoader {
 
             HashMap<Integer, List<int[]>> indexes = new HashMap<>();
 
-            int colIndex = getColumnIndex(relationName, col); // TODO: parameterize this in, hardcoded for now
+            int colIndex = getColumnIndex(relationName, col);
             for (int i = 0; i < tuples.size(); i++) {
                 int key = tuples.get(i)[colIndex];
                 List<int[]> ridList = indexes.getOrDefault(key, new ArrayList<>());
