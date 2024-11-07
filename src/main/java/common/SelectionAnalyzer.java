@@ -8,8 +8,8 @@ import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 
 public class SelectionAnalyzer extends ExpressionVisitorAdapter {
-  private String indexedColumn;
   private String indexedTable;
+  private String indexedColumn;
   private Integer lowKey = null;
   private Integer highKey = null;
   private List<Expression> remainingConditions;
@@ -103,8 +103,7 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
     processComparisonOperation(expr, false, true);
   }
 
-  private void processComparisonOperation(
-      ComparisonOperator expr, boolean isLower, boolean inclusive) {
+  private void processComparisonOperation(ComparisonOperator expr, boolean isLower, boolean inclusive) {
     Expression left = expr.getLeftExpression();
     Expression right = expr.getRightExpression();
 
@@ -145,6 +144,7 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
     remainingConditions.add(expr);
   }
 
+  // Getter methods
   public Integer getLowKey() {
     return lowKey;
   }
@@ -153,11 +153,23 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
     return highKey;
   }
 
+  public String getIndexedColumn() {
+    return indexedColumn;
+  }
+
+  public String getIndexedTable() {
+    return indexedTable;
+  }
+
   public List<Expression> getRemainingConditions() {
     return remainingConditions;
   }
 
   public boolean hasIndexConditions() {
     return lowKey != null || highKey != null;
+  }
+
+  public boolean getCurrentExpressionUsesIndex() {
+    return currentExpressionUsesIndex;
   }
 }

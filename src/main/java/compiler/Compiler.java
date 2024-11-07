@@ -3,6 +3,7 @@ package compiler;
 import common.DBCatalog;
 import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
+import common.BulkLoader;
 import file_management.TupleWriter;
 import java.io.*;
 import java.nio.file.Files;
@@ -68,9 +69,10 @@ public class Compiler {
 
       // Create builders
       LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-      String dbPath = inputDir + File.separator + "db";
-      PhysicalPlanBuilder physicalPlanBuilder =
-          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), useIndexes, dbPath);
+      String indexDir = inputDir + File.separator + "db" + File.separator + "indexes";
+      PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
+          logicalPlanBuilder.getTableAliases(),
+          indexDir);
 
       // Process each query
       int queryCount = 1;
@@ -141,15 +143,11 @@ public class Compiler {
 
   private static void buildIndexes() throws IOException {
     logger.info("Building indexes...");
-
-    // Read index_info.txt to determine which indexes to build
     String indexInfoPath = inputDir + File.separator + "db" + File.separator + "index_info.txt";
+    String indexDir = inputDir + File.separator + "db" + File.separator + "indexes";
 
     // Create indexes directory if it doesn't exist
-    File indexesDir = new File(inputDir + File.separator + "db" + File.separator + "indexes");
-    if (!indexesDir.exists()) {
-      indexesDir.mkdirs();
-    }
+    new File(indexDir).mkdirs();
 
     try (BufferedReader reader = new BufferedReader(new FileReader(indexInfoPath))) {
       String line;
@@ -161,17 +159,17 @@ public class Compiler {
           boolean isClustered = parts[2].equals("1");
           int order = Integer.parseInt(parts[3]);
 
-          // Build the index for this table
-          String outputFile = indexesDir.getPath() + File.separator + tableName + "." + columnName;
+          String outputFile = indexDir + File.separator + tableName + "." + columnName;
 
-          // Create and use BulkLoader to build the index
           try {
-            common.BulkLoader loader = new common.BulkLoader(indexInfoPath, outputFile);
+            // Create and use BulkLoader to build the index
+            BulkLoader loader = new BulkLoader(indexInfoPath, outputFile);
             loader.buildAndSerialize();
             logger.info("Built index for {}.{}", tableName, columnName);
           } catch (Exception e) {
             logger.error(
-                "Error building index for {}.{}: {}", tableName, columnName, e.getMessage());
+                "Error building index for {}.{}: {}",
+                tableName, columnName, e.getMessage());
             e.printStackTrace();
           }
         }
@@ -220,6 +218,12 @@ public class Compiler {
     if (!indexInfoFile.exists()) {
       logger.error("index_info.txt not found in db directory");
       System.exit(1);
+    }
+
+    // Create indexes directory if it doesn't exist
+    File indexesDir = new File(dbDir, "indexes");
+    if (!indexesDir.exists()) {
+      indexesDir.mkdirs();
     }
 
     // Verify output directory exists

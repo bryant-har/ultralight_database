@@ -23,6 +23,8 @@ public class P2UnitTests {
   private static final String EXPECTED_DIR = "src/test/resources/samples/expected";
   private static final String QUERIES_FILE = INPUT_DIR + "/p2.sql";
   private static final String CONFIG_FILE = INPUT_DIR + "/plan_builder_config.txt";
+  private static final String DB_DIR = INPUT_DIR + "/db_p2";
+  private static final String INDEX_DIR = DB_DIR + "/indexes";
 
   @BeforeAll
   public static void setup() {
@@ -30,14 +32,16 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+  @ValueSource(ints = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 })
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder =
-        new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), false, "");
+    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
+        logicalPlanBuilder.getTableAliases(),
+        INDEX_DIR // Pass the index directory path
+    );
 
     Statement statement = statements.get(idx - 1);
     if (statement instanceof Select) {
@@ -47,8 +51,7 @@ public class P2UnitTests {
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
       List<String> expectedOutput = readExpectedOutput(idx);
-      List<String> actualOutputString =
-          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+      List<String> actualOutputString = actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       // check correct num of tuples
       assertEquals(
