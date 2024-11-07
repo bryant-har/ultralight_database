@@ -1,6 +1,8 @@
 package common;
 
 import file_management.TupleReader;
+import net.sf.jsqlparser.schema.Column;
+
 import java.io.*;
 import java.nio.*;
 import java.util.*;
@@ -16,6 +18,7 @@ public class BulkLoader {
     private RandomAccessFile raf;
     private ByteBuffer buffer;
     private int PAGE_SIZE = 4096;
+    private DBCatalog dbCatalog;
 
     public BulkLoader(String indexInfoFilePath, String outputFileName) throws IOException {
         List<RelationInfo> relations = parseIndexInfoFile(indexInfoFilePath);
@@ -27,6 +30,7 @@ public class BulkLoader {
         this.isClustered = relation.isClustered;
         this.d = relation.d;
         dataEntries = new ArrayList<>();
+        this.dbCatalog = DBCatalog.getInstance();
 
         scanRelation(relationName, col);
 
@@ -85,7 +89,7 @@ public class BulkLoader {
 
             HashMap<Integer, List<int[]>> indexes = new HashMap<>();
 
-            int colIndex = 1; // TODO: parameterize this in, hardcoded for now
+            int colIndex = getColumnIndex(relationName, col); // TODO: parameterize this in, hardcoded for now
             for (int i = 0; i < tuples.size(); i++) {
                 int key = tuples.get(i)[colIndex];
                 List<int[]> ridList = indexes.getOrDefault(key, new ArrayList<>());
@@ -112,6 +116,16 @@ public class BulkLoader {
             System.err.println("Error reading file: " + fileName);
             e.printStackTrace();
         }
+    }
+
+    private int getColumnIndex(String tableName, String columnName) {
+        ArrayList<Column> columns = dbCatalog.getColumns(tableName);
+        for (int i = 0; i < columns.size(); i++) {
+            if (columns.get(i).getColumnName().equals(columnName)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private void writeSortedRelation(String relationName) {
