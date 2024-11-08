@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 
 public class BulkLoaderTest {
 
-  private static final String TEST_FILE = "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/out/index_out.txt";
-  private static final String TEST_FILE_INFO = "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db_p3/index_info.txt";
+  private static final String TEST_FILE = "src/test/resources/out/index_out.txt";
+  private static final String TEST_FILE_INFO = "src/test/resources/samples/input/db_p3/index_info.txt";
   private static final int PAGE_SIZE = 4096;
   private BulkLoader bulkLoader;
   private RandomAccessFile raf;
