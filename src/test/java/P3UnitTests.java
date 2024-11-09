@@ -1,11 +1,10 @@
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import common.BulkLoader;
 import common.DBCatalog;
 import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
 import common.Tuple;
-import common.BulkLoader;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -74,7 +73,8 @@ public class P3UnitTests {
             loader.buildAndSerialize();
             System.out.println("Built index for " + tableName + "." + columnName);
           } catch (Exception e) {
-            System.err.println("Error building index for " + tableName + "." + columnName + ": " + e.getMessage());
+            System.err.println(
+                "Error building index for " + tableName + "." + columnName + ": " + e.getMessage());
             e.printStackTrace();
           }
         }
@@ -83,13 +83,13 @@ public class P3UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 })
+  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
   public void testQueriesWithoutIndexes(int idx) throws Exception {
     runTest(idx, false);
   }
 
   @ParameterizedTest
-  @ValueSource(ints = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 })
+  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
   public void testQueriesWithIndexes(int idx) throws Exception {
     // Build indexes before running tests with indexes
     buildIndexes();
@@ -104,10 +104,10 @@ public class P3UnitTests {
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
-        logicalPlanBuilder.getTableAliases(),
-        INDEX_DIR // Pass the index directory path
-    );
+    PhysicalPlanBuilder physicalPlanBuilder =
+        new PhysicalPlanBuilder(
+            logicalPlanBuilder.getTableAliases(), INDEX_DIR // Pass the index directory path
+            );
 
     Statement statement = statements.get(idx - 1);
     System.out.println("Executing query: " + statement.toString());
@@ -118,7 +118,8 @@ public class P3UnitTests {
       Operator physicalPlan = physicalPlanBuilder.getResult();
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
-      List<String> actualOutputString = actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+      List<String> actualOutputString =
+          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       List<String> expectedOutput = readExpectedOutput(idx);
 

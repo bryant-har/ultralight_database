@@ -103,7 +103,8 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
     processComparisonOperation(expr, false, true);
   }
 
-  private void processComparisonOperation(ComparisonOperator expr, boolean isLower, boolean inclusive) {
+  private void processComparisonOperation(
+      ComparisonOperator expr, boolean isLower, boolean inclusive) {
     Expression left = expr.getLeftExpression();
     Expression right = expr.getRightExpression();
 

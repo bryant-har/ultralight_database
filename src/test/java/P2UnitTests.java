@@ -32,16 +32,16 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 })
+  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
-        logicalPlanBuilder.getTableAliases(),
-        INDEX_DIR // Pass the index directory path
-    );
+    PhysicalPlanBuilder physicalPlanBuilder =
+        new PhysicalPlanBuilder(
+            logicalPlanBuilder.getTableAliases(), INDEX_DIR // Pass the index directory path
+            );
 
     Statement statement = statements.get(idx - 1);
     if (statement instanceof Select) {
@@ -51,7 +51,8 @@ public class P2UnitTests {
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
       List<String> expectedOutput = readExpectedOutput(idx);
-      List<String> actualOutputString = actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+      List<String> actualOutputString =
+          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       // check correct num of tuples
       assertEquals(
