@@ -6,6 +6,21 @@ import java.nio.*;
 import java.util.*;
 import net.sf.jsqlparser.schema.Column;
 
+/**
+ * BulkLoader class implements functionality to build B+ tree indexes for
+ * database relations.
+ * This class handles both clustered and unclustered indexes, following the bulk
+ * loading algorithm
+ * which constructs the tree bottom-up for optimal space utilization.
+ *
+ * The tree has an order 'd' where:
+ * - Leaf nodes must have between d and 2d data entries
+ * - Index nodes must have between d and 2d keys, and d+1 to 2d+1 child pointers
+ * 
+ * The implementation uses Alternative (3) format where leaf nodes contain data
+ * entries
+ * of the form <key, list of RIDs> where each RID is a (pageId, tupleId) pair.
+ */
 public class BulkLoader {
   private int d; // order of the tree
   private String relationName;
@@ -16,13 +31,22 @@ public class BulkLoader {
   private String col;
   private RandomAccessFile raf;
   private ByteBuffer buffer;
-  private int PAGE_SIZE = 4096;
+  private static final int PAGE_SIZE = 4096;
   private DBCatalog dbCatalog;
 
+  /**
+   * Constructs a BulkLoader to build a B+ tree index.
+   * Reads index configuration from the provided file and initializes the bulk
+   * loading process.
+   *
+   * @param indexInfoFilePath Path to the index configuration file
+   * @param outputFileName    Path where the serialized B+ tree will be written
+   * @throws IOException If there are errors reading the index info file
+   */
   public BulkLoader(String indexInfoFilePath, String outputFileName) throws IOException {
     List<RelationInfo> relations = parseIndexInfoFile(indexInfoFilePath);
 
-    // TODO: index all relations in the file, we process only one rn
+    // Currently processes only the first relation in the file
     RelationInfo relation = relations.get(0);
     this.relationName = relation.relationName;
     this.col = relation.indexName;
@@ -37,6 +61,14 @@ public class BulkLoader {
     nextAddress = 0;
   }
 
+  /**
+   * Parses the index information file to extract configuration for each index.
+   * File format: relation_name index_name clustered(0/1) order
+   *
+   * @param indexInfoFilePath Path to the index configuration file
+   * @return List of RelationInfo objects containing parsed configurations
+   * @throws IOException If there are errors reading the file
+   */
   private List<RelationInfo> parseIndexInfoFile(String indexInfoFilePath) throws IOException {
     List<RelationInfo> relations = new ArrayList<>();
 
@@ -59,6 +91,9 @@ public class BulkLoader {
     return relations;
   }
 
+  /**
+   * Inner class to hold index configuration information for a relation.
+   */
   private static class RelationInfo {
     String relationName;
     String indexName;
@@ -73,6 +108,13 @@ public class BulkLoader {
     }
   }
 
+  /**
+   * Scans the relation file and builds data entries for the index.
+   * For clustered indexes, also sorts the data entries by key.
+   *
+   * @param relationName Name of the relation to scan
+   * @param col          Name of the column to index
+   */
   public void scanRelation(String relationName, String col) {
     String fileName = "src/test/resources/samples/input/db_p2/data/" + relationName;
     System.out.println("Reading data from: " + fileName);
@@ -86,8 +128,8 @@ public class BulkLoader {
         System.out.println("First tuple: " + Arrays.toString(tuples.get(0)));
       }
 
+      // Build index entries grouped by key
       HashMap<Integer, List<int[]>> indexes = new HashMap<>();
-
       int colIndex = getColumnIndex(relationName, col);
       for (int i = 0; i < tuples.size(); i++) {
         int key = tuples.get(i)[colIndex];
@@ -96,6 +138,7 @@ public class BulkLoader {
         indexes.put(key, ridList);
       }
 
+      // Create sorted data entries
       Set<Integer> keys = indexes.keySet();
       List<Integer> sortedKeys = new ArrayList<>(keys);
       Collections.sort(sortedKeys);
@@ -105,10 +148,10 @@ public class BulkLoader {
         dataEntries.add(temp);
       }
 
-      // checking for clustering
+      // For clustered indexes, sort entries and write sorted relation
       if (isClustered) {
         dataEntries.sort(Comparator.comparingInt(entry -> entry.key));
-        writeSortedRelation(relationName); // save srted relation
+        writeSortedRelation(relationName);
       }
 
     } catch (IOException e) {
@@ -117,6 +160,13 @@ public class BulkLoader {
     }
   }
 
+  /**
+   * Gets the index of a column in a table's schema.
+   *
+   * @param tableName  Name of the table
+   * @param columnName Name of the column
+   * @return Index of the column in the schema, or -1 if not found
+   */
   private int getColumnIndex(String tableName, String columnName) {
     ArrayList<Column> columns = dbCatalog.getColumns(tableName);
     for (int i = 0; i < columns.size(); i++) {
@@ -127,9 +177,13 @@ public class BulkLoader {
     return -1;
   }
 
+  /**
+   * Writes a sorted version of the relation for clustered indexes.
+   *
+   * @param relationName Name of the relation to write
+   */
   private void writeSortedRelation(String relationName) {
-    String sortedFileName =
-        "src/test/resources/samples/input/db_p2/data/" + relationName + "_sorted";
+    String sortedFileName = "src/test/resources/samples/input/db_p2/data/" + relationName + "_sorted";
     try (RandomAccessFile sortedFile = new RandomAccessFile(sortedFileName, "rw")) {
       for (DataEntry entry : dataEntries) {
         for (int[] rid : entry.rids) {
@@ -145,6 +199,12 @@ public class BulkLoader {
     }
   }
 
+  /**
+   * Builds the leaf nodes of the B+ tree according to the bulk loading algorithm.
+   * Each leaf node gets 2d entries except possibly the last two nodes.
+   *
+   * @return List of constructed leaf nodes
+   */
   private List<TreeNode> buildLeafNodes() {
     List<TreeNode> leafNodes = new ArrayList<>();
 
@@ -154,7 +214,7 @@ public class BulkLoader {
     while (i < totalEntries) {
       int entriesToAdd = 2 * d;
 
-      // special case of last two nodes if needed
+      // Handle special case for last two nodes
       int k = totalEntries - i;
       if (k > 2 * d && k < 3 * d) {
         entriesToAdd = k / 2;
@@ -174,6 +234,12 @@ public class BulkLoader {
     return leafNodes;
   }
 
+  /**
+   * Builds and serializes the complete B+ tree.
+   * This includes building leaf nodes, index nodes, and writing the header page.
+   *
+   * @throws IOException If there are errors writing to the output file
+   */
   public void buildAndSerialize() throws IOException {
     List<TreeNode> currentLevel = buildLeafNodes();
     System.out.println("Address of leaf nodes: " + currentLevel.get(0).address);
@@ -191,11 +257,9 @@ public class BulkLoader {
         currentAddress++;
       }
       if (currentLevel.size() == 1) {
-        // this is the root
         rootAddress = currentLevel.get(0).address;
         break;
       }
-      // otherwise recursively serialize the nodes
       nextLevel = buildIndexNodes(currentLevel);
       currentLevel = nextLevel;
     }
@@ -203,6 +267,14 @@ public class BulkLoader {
     writeHeaderPage(rootAddress, numberOfLeaves);
   }
 
+  /**
+   * Writes the header page of the B+ tree file.
+   * Contains root address, number of leaves, and tree order.
+   *
+   * @param rootAddress    Address of the root node
+   * @param numberOfLeaves Total number of leaf nodes
+   * @throws IOException If there are errors writing to the file
+   */
   private void writeHeaderPage(int rootAddress, int numberOfLeaves) throws IOException {
     raf.seek(0);
     raf.writeInt(rootAddress);
@@ -211,12 +283,21 @@ public class BulkLoader {
     System.out.println("Header Page - Number of Leaves: " + numberOfLeaves);
     raf.writeInt(d);
     System.out.println("Header Page - d: " + d);
-    // fill the rest with zeros
+
+    // Fill rest of page with zeros
     for (int i = 3; i < PAGE_SIZE / 4; i++) {
       raf.writeInt(0);
     }
   }
 
+  /**
+   * Serializes a node to the output file.
+   * Handles both leaf and index nodes with appropriate formatting.
+   *
+   * @param node    The node to serialize
+   * @param address The address where the node should be written
+   * @throws IOException If there are errors writing to the file
+   */
   private void serializeNode(TreeNode node, int address) throws IOException {
     raf.seek((address + 1) * PAGE_SIZE);
     if (node.isLeaf) {
@@ -231,7 +312,6 @@ public class BulkLoader {
         }
       }
     } else {
-      // this is an index node
       raf.writeInt(1); // index node flag
       raf.writeInt(node.keys.size());
       for (int key : node.keys) {
@@ -242,7 +322,7 @@ public class BulkLoader {
       }
     }
 
-    // Fill the rest of the page with zeros
+    // Fill remaining page space with zeros
     long currentPosition = raf.getFilePointer();
     long end = ((long) (address + 2) * PAGE_SIZE);
     while (currentPosition < end) {
@@ -251,6 +331,14 @@ public class BulkLoader {
     }
   }
 
+  /**
+   * Builds the index nodes layer of the B+ tree.
+   * Each index node gets 2d+1 children and 2d keys except possibly the last two
+   * nodes.
+   *
+   * @param childNodes List of child nodes to build index nodes from
+   * @return List of constructed index nodes
+   */
   private List<TreeNode> buildIndexNodes(List<TreeNode> childNodes) {
     List<TreeNode> indexNodes = new ArrayList<>();
     int totalChildren = childNodes.size();
@@ -261,7 +349,6 @@ public class BulkLoader {
       int nodesToAdd;
       int keysToAdd;
       if (remainingChildren > 2 * d + 1 && remainingChildren < 3 * d + 2) {
-        // case for last two nodes
         nodesToAdd = remainingChildren / 2;
         keysToAdd = nodesToAdd - 1;
       } else {
@@ -288,6 +375,10 @@ public class BulkLoader {
     return indexNodes;
   }
 
+  /**
+   * Represents a data entry in a leaf node of the B+ tree.
+   * Contains a key and its associated list of RIDs.
+   */
   public class DataEntry implements Comparable<DataEntry> {
     int key;
     List<int[]> rids;
@@ -303,6 +394,11 @@ public class BulkLoader {
     }
   }
 
+  /**
+   * Represents a node in the B+ tree.
+   * Can be either a leaf node containing data entries or an index node containing
+   * keys and child pointers.
+   */
   public class TreeNode {
     private boolean isLeaf;
     private List<Integer> keys;
@@ -318,12 +414,63 @@ public class BulkLoader {
       this.address = -1;
     }
 
+    /**
+     * Adds a data entry to a leaf node.
+     *
+     * @param entry The data entry to add
+     * @throws IllegalStateException if attempting to add to a non-leaf node
+     */
     public void addEntry(DataEntry entry) {
       if (!isLeaf) {
         throw new IllegalStateException("Can't add entry to non-leaf nodes");
       }
       entries.add(entry);
       keys.add(entry.key);
+    }
+
+    /**
+     * Returns whether this node is a leaf node.
+     *
+     * @return true if this is a leaf node, false otherwise
+     */
+    public boolean isLeaf() {
+      return isLeaf;
+    }
+
+    /**
+     * Returns the list of keys in this node.
+     *
+     * @return List of keys
+     */
+    public List<Integer> getKeys() {
+      return keys;
+    }
+
+    /**
+     * Returns the list of child nodes.
+     *
+     * @return List of child nodes
+     */
+    public List<TreeNode> getChildren() {
+      return children;
+    }
+
+    /**
+     * Returns the list of data entries (only valid for leaf nodes).
+     *
+     * @return List of data entries
+     */
+    public List<DataEntry> getEntries() {
+      return entries;
+    }
+
+    /**
+     * Returns the address of this node in the B+ tree file.
+     *
+     * @return The node's address
+     */
+    public int getAddress() {
+      return address;
     }
   }
 }
