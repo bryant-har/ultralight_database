@@ -33,7 +33,8 @@ public class UnionFind {
     UnionElement root1 = findSet(elt1);
     UnionElement root2 = findSet(elt2);
 
-    // TODO: potentially have to account for merging constraints
+    // potentially have to account for merging constraints
+    mergeConstraints(root1, root2);
 
     if (root1 == root2) {
       return;
@@ -49,7 +50,45 @@ public class UnionFind {
     }
   }
 
-  // TODO: given a union-find element, set its lower bound, upper bound, or
+  private void mergeConstraints(UnionElement root1, UnionElement root2) {
+    // equality constraints
+    if (root1.equalityConstraint != null && root2.equalityConstraint != null) {
+      if (!root1.equalityConstraint.equals(root2.equalityConstraint)) {
+        throw new IllegalStateException("Conflicting equality constraints");
+      }
+    } else if (root1.equalityConstraint != null) {
+      setEqualityConstraint(root2, root1.equalityConstraint);
+    } else if (root2.equalityConstraint != null) {
+      setEqualityConstraint(root1, root2.equalityConstraint);
+    }
+
+    // merge bounds
+    Double newLower = null;
+    if (root1.lowerBound != null && root2.lowerBound != null) {
+      newLower = Math.max(root1.lowerBound, root2.lowerBound);
+    } else {
+      newLower = root1.lowerBound != null ? root1.lowerBound : root2.lowerBound;
+    }
+
+    Double newUpper = null;
+    if (root1.upperBound != null && root2.upperBound != null) {
+      newUpper = Math.min(root1.upperBound, root2.upperBound);
+    } else {
+      newUpper = root1.upperBound != null ? root1.upperBound : root2.upperBound;
+    }
+
+    // vaalidate
+    if (newLower != null && newUpper != null && newLower > newUpper) {
+      throw new IllegalStateException("Inconsistent bounds after union");
+    }
+
+    root1.lowerBound = newLower;
+    root1.upperBound = newUpper;
+    root2.lowerBound = newLower;
+    root2.upperBound = newUpper;
+  }
+
+  // given a union-find element, set its lower bound, upper bound, or
   // equality constraint to a particular value.
 
   public void setLowerBound(UnionElement element, double value) {
