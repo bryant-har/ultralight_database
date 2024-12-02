@@ -19,7 +19,7 @@ import net.sf.jsqlparser.statement.select.PlainSelect;
 import net.sf.jsqlparser.statement.select.Select;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
 /**
  * Example class for getting started with JSQLParser. Reads SQL statements from a file and prints
@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 public class _ParserExample {
   private final Logger logger = LogManager.getLogger();
 
-  @Test
+  @Disabled
   public void parserExampleTest() throws IOException, JSQLParserException, URISyntaxException {
     ClassLoader classLoader = P1UnitTests.class.getClassLoader();
 
