@@ -1,7 +1,8 @@
 package file_management;
 
-import java.io.*;
-import java.nio.*;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 
@@ -11,7 +12,10 @@ public class TupleReader implements AutoCloseable {
   private FileChannel fileChannel;
   private int numTuples;
   private int numTupleAttributes;
+  private int currPage;
+  private int currTupleOnPage;
   private ArrayList<int[]> tuples;
+  private ArrayList<int[]> metaDataArrayList;
 
   public TupleReader(String filePath) throws IOException {
     FileInputStream fileInputStream = new FileInputStream(filePath);
@@ -19,12 +23,21 @@ public class TupleReader implements AutoCloseable {
     this.buffer = ByteBuffer.allocate(PAGE_SIZE);
     this.numTupleAttributes = 0;
     this.tuples = new ArrayList<>();
+
+    // This metadata keeps track of the references used by indexes
+    this.metaDataArrayList = new ArrayList<>();
     this.numTuples = 0;
+    this.currPage = 0;
+    int currTupleOnPage = 0;
+    loadNextPage();
   }
 
   public boolean loadNextPage() throws IOException {
     actuallyClearBuffer();
     tuples.clear();
+    currPage += 1;
+    currTupleOnPage = 0;
+
     int bytesReadIn = fileChannel.read(buffer);
 
     // is this logic still necessary if we have the logic below checking for numTuples == 0?
@@ -50,12 +63,28 @@ public class TupleReader implements AutoCloseable {
         tuple[j] = buffer.getInt(baseIndex + j * 4);
       }
       tuples.add(tuple);
+      int[] metaDataForCurrTuple = {currPage, currTupleOnPage};
+      metaDataArrayList.add(metaDataForCurrTuple);
+      currTupleOnPage += 1;
     }
     return true; // Page has tuples
   }
 
   public ArrayList<int[]> readTuplePage() {
     return this.tuples;
+  }
+
+  public ArrayList<int[]> readTuples() throws IOException {
+    ArrayList<int[]> alltuples = new ArrayList<>();
+    alltuples.addAll(tuples);
+    while (loadNextPage()) {
+      alltuples.addAll(readTuplePage());
+    }
+    return alltuples;
+  }
+
+  public ArrayList<int[]> readMetaData() {
+    return this.metaDataArrayList;
   }
 
   @Override

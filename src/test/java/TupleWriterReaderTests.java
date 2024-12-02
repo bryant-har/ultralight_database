@@ -6,7 +6,6 @@ import file_management.TupleWriter;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,11 +36,7 @@ public class TupleWriterReaderTests {
     tupleWriter.close();
 
     tupleReader = new TupleReader(TEST_FILE_PATH);
-    List<int[]> readTuples = new ArrayList<>();
-    while (tupleReader.loadNextPage()) {
-      ArrayList<int[]> page = tupleReader.readTuplePage();
-      readTuples.addAll(page);
-    }
+    List<int[]> readTuples = tupleReader.readTuples();
     tupleReader.close();
 
     assertEquals(1, readTuples.size(), "Unexpected number of tuples read.");
@@ -63,11 +58,7 @@ public class TupleWriterReaderTests {
     tupleWriter.close();
 
     tupleReader = new TupleReader(TEST_FILE_PATH);
-    List<int[]> readTuples = new ArrayList<>();
-    while (tupleReader.loadNextPage()) {
-      ArrayList<int[]> page = tupleReader.readTuplePage();
-      readTuples.addAll(page);
-    }
+    List<int[]> readTuples = tupleReader.readTuples();
     tupleReader.close();
 
     assertEquals(tuplesToWrite.length, readTuples.size(), "Unexpected number of tuples read.");
@@ -82,11 +73,7 @@ public class TupleWriterReaderTests {
 
     TupleReader tupleReader = new TupleReader(file_path_boats);
 
-    List<int[]> tuples = new ArrayList<>();
-    while (tupleReader.loadNextPage()) {
-      ArrayList<int[]> page = tupleReader.readTuplePage();
-      tuples.addAll(page);
-    }
+    List<int[]> tuples = tupleReader.readTuples();
     tupleReader.close();
 
     assertEquals(1000, tuples.size(), "Unexpected number of tuples read.");
@@ -116,11 +103,7 @@ public class TupleWriterReaderTests {
     tupleWriter.flushPage();
 
     tupleReader = new TupleReader(TEST_FILE_PATH);
-    List<int[]> readTuples = new ArrayList<>();
-    while (tupleReader.loadNextPage()) {
-      ArrayList<int[]> page = tupleReader.readTuplePage();
-      readTuples.addAll(page);
-    }
+    List<int[]> readTuples = tupleReader.readTuples();
     tupleReader.close();
 
     assertEquals(tuplesToWrite.length, readTuples.size(), "Unexpected number of tuples read.");

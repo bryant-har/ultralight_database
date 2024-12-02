@@ -27,6 +27,8 @@ public class P2UnitTests {
   private static final String QUERIES_FILE = INPUT_DIR + "/p2.sql";
   private static final String CONFIG_FILE = INPUT_DIR + "/plan_builder_config.txt";
   private static final Logger logger = LogManager.getLogger();
+  private static final String DB_DIR = INPUT_DIR + "/db_p2";
+  private static final String INDEX_DIR = DB_DIR + "/indexes";
 
   @BeforeAll
   public static void setup() {
@@ -42,7 +44,8 @@ public class P2UnitTests {
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
     PhysicalPlanBuilder physicalPlanBuilder =
         new PhysicalPlanBuilder(
-            logicalPlanBuilder.getTableAliases(), CONFIG_FILE, INPUT_DIR + "/temp");
+            logicalPlanBuilder.getTableAliases(), INDEX_DIR // Pass the index directory path
+            );
 
     Statement statement = statements.get(idx - 1);
     if (statement instanceof Select) {
@@ -77,7 +80,7 @@ public class P2UnitTests {
       Collections.sort(actualOutputString);
       assertEquals(expectedOutput, actualOutputString, "Query " + idx + " failed");
     } else {
-      throw new UnsupportedOperationException("Only SsELECT statements are supported");
+      throw new UnsupportedOperationException("Only S1ELECT statements are supported");
     }
   }
 

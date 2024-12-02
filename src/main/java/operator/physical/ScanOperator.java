@@ -31,11 +31,7 @@ public class ScanOperator extends Operator {
     ArrayList<int[]> rows = new ArrayList<>();
 
     try (TupleReader reader = new TupleReader(tableFile.getAbsolutePath())) {
-
-      while (reader.loadNextPage()) {
-        ArrayList<int[]> page = reader.readTuplePage();
-        rows.addAll(page);
-      }
+      rows.addAll(reader.readTuples());
     } catch (IOException e) {
       e.printStackTrace();
     }

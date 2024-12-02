@@ -8,19 +8,39 @@ import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 
+/**
+ * ExpressionEvaluator handles the evaluation of SQL expressions within the query processing system.
+ * It extends ExpressionVisitorAdapter to visit and evaluate different types of SQL expressions. The
+ * evaluator supports basic comparison operations, logical AND operations, and handles column
+ * references with proper table alias resolution.
+ *
+ * <p>This class is primarily used for evaluating WHERE clause conditions and JOIN conditions in the
+ * context of query execution.
+ */
 public class ExpressionEvaluator extends ExpressionVisitorAdapter {
+  /** Current tuple being evaluated */
   private Tuple tuple;
+
+  /** Result of the current expression evaluation */
   private boolean result;
+
+  /** Temporary storage for intermediate numeric values */
   private int tempValue;
+
+  /** Schema of the relation being processed */
   private List<Column> schema;
+
+  /** Mapping of table aliases to actual table names */
   private Map<String, String> tableAliases;
 
   /**
-   * Prunes where condition based on available columns. Removes all where conditions that are not
-   * applicable.
+   * Prunes a WHERE condition based on available tables. Removes conditions that reference tables
+   * not available in the current context. This is particularly useful for implementing join
+   * operations where conditions need to be split between different operators.
    *
-   * @param whereCondition The where condition to check.
-   * @return Expression The pruned where condition
+   * @param whereCondition The WHERE condition expression to prune
+   * @param availableTableNames List of table names that are available in the current context
+   * @return The pruned expression, or null if the entire expression should be removed
    */
   static Expression pruneWhereCondition(
       Expression whereCondition, List<String> availableTableNames) {
@@ -55,10 +75,24 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     return whereCondition; // return unchanged expression
   }
 
+  /**
+   * Constructs an ExpressionEvaluator with the given table alias mappings.
+   *
+   * @param tableAliases Map of table aliases to their actual table names
+   */
   public ExpressionEvaluator(Map<String, String> tableAliases) {
     this.tableAliases = tableAliases;
   }
 
+  /**
+   * Evaluates an expression against a given tuple and schema. This is the main entry point for
+   * expression evaluation.
+   *
+   * @param expr The expression to evaluate
+   * @param tuple The tuple to evaluate against
+   * @param schema The schema defining the structure of the tuple
+   * @return The boolean result of the expression evaluation
+   */
   public boolean evaluate(Expression expr, Tuple tuple, List<Column> schema) {
     this.tuple = tuple;
     this.schema = schema;
@@ -66,6 +100,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     return result;
   }
 
+  /**
+   * Visits and evaluates an AND expression by evaluating both operands.
+   *
+   * @param andExpression The AND expression to evaluate
+   */
   @Override
   public void visit(AndExpression andExpression) {
     andExpression.getLeftExpression().accept(this);
@@ -74,6 +113,12 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     result = leftResult && result; // Combine results using AND logic
   }
 
+  /**
+   * Visits and evaluates a column reference by looking up its value in the current tuple.
+   *
+   * @param column The column reference to evaluate
+   * @throws IllegalArgumentException if the column is not found in the schema
+   */
   @Override
   public void visit(Column column) {
     String columnName = column.getColumnName();
@@ -96,16 +141,31 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     }
   }
 
+  /**
+   * Visits and evaluates a long literal value.
+   *
+   * @param longValue The long value to evaluate
+   */
   @Override
   public void visit(LongValue longValue) {
     tempValue = (int) longValue.getValue(); // Handle long value
   }
 
+  /**
+   * Visits and evaluates a double literal value.
+   *
+   * @param doubleValue The double value to evaluate
+   */
   @Override
   public void visit(DoubleValue doubleValue) {
     tempValue = (int) doubleValue.getValue(); // Handle double value (truncated to int)
   }
 
+  /**
+   * Visits and evaluates an equals comparison.
+   *
+   * @param equalsTo The equals comparison to evaluate
+   */
   @Override
   public void visit(EqualsTo equalsTo) {
     equalsTo.getLeftExpression().accept(this);
@@ -114,6 +174,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     result = left == tempValue;
   }
 
+  /**
+   * Visits and evaluates a not-equals comparison.
+   *
+   * @param notEqualsTo The not-equals comparison to evaluate
+   */
   @Override
   public void visit(NotEqualsTo notEqualsTo) {
     notEqualsTo.getLeftExpression().accept(this);
@@ -122,6 +187,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     result = left != tempValue;
   }
 
+  /**
+   * Visits and evaluates a greater-than comparison.
+   *
+   * @param greaterThan The greater-than comparison to evaluate
+   */
   @Override
   public void visit(GreaterThan greaterThan) {
     greaterThan.getLeftExpression().accept(this);
@@ -130,6 +200,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     result = left > tempValue;
   }
 
+  /**
+   * Visits and evaluates a greater-than-or-equals comparison.
+   *
+   * @param greaterThanEquals The greater-than-or-equals comparison to evaluate
+   */
   @Override
   public void visit(GreaterThanEquals greaterThanEquals) {
     greaterThanEquals.getLeftExpression().accept(this);
@@ -138,6 +213,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     result = left >= tempValue;
   }
 
+  /**
+   * Visits and evaluates a less-than comparison.
+   *
+   * @param minorThan The less-than comparison to evaluate
+   */
   @Override
   public void visit(MinorThan minorThan) {
     minorThan.getLeftExpression().accept(this);
@@ -146,6 +226,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     result = left < tempValue;
   }
 
+  /**
+   * Visits and evaluates a less-than-or-equals comparison.
+   *
+   * @param minorThanEquals The less-than-or-equals comparison to evaluate
+   */
   @Override
   public void visit(MinorThanEquals minorThanEquals) {
     minorThanEquals.getLeftExpression().accept(this);
@@ -155,11 +240,12 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   }
 
   /**
-   * Finds the index of the column in the schema based on the alias and column name.
+   * Finds the index of a column in the schema based on the alias and column name. This method
+   * handles table aliases properly to support self-joins.
    *
-   * @param tableAlias the alias of the table or null if none
-   * @param columnName the name of the column
-   * @return the index of the column in the schema, or -1 if not found
+   * @param tableAlias The alias of the table or null if none
+   * @param columnName The name of the column
+   * @return The index of the column in the schema, or -1 if not found
    */
   private int getColumnIndex(String tableAlias, String columnName) {
     for (int i = 0; i < schema.size(); i++) {
@@ -168,9 +254,7 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
       String schemaTableAlias =
           schemaColumn.getTable().getAlias() != null
               ? schemaColumn.getTable().getAlias().getName()
-              : schemaColumn
-                  .getTable()
-                  .getName(); // Handle self-joins by checking both alias and real table name
+              : schemaColumn.getTable().getName();
 
       // Prioritize alias match over table name match
       if (schemaColumnName.equals(columnName)
@@ -179,7 +263,6 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
       }
     }
 
-    // If no match is found, print an error for debugging
     return -1; // Return -1 if the column was not found
   }
 }

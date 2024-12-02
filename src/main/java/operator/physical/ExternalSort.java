@@ -5,7 +5,12 @@ import file_management.TupleReader;
 import file_management.TupleWriter;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Random;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.OrderByElement;
 
@@ -105,9 +110,7 @@ public class ExternalSort extends SortOperator {
       finalPassNumber = currentPass;
       finalResultReader = new TupleReader(getTempFileName(finalPassNumber, 0));
       currentBatch.clear();
-      while (finalResultReader.loadNextPage()) {
-        currentBatch.addAll(finalResultReader.readTuplePage());
-      }
+      currentBatch = finalResultReader.readTuples();
       finalResultReader.close();
       currentIndex = 0;
 

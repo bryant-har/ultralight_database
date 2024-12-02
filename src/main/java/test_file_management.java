@@ -6,8 +6,9 @@ import java.util.List;
 
 public class test_file_management {
   public static void main(String[] args) throws IOException {
-    testReader();
-    testWriter();
+    // testReader();
+    testWriter(1);
+    testReaderCount(1);
   }
 
   public static void testReader() throws IOException {
@@ -15,11 +16,7 @@ public class test_file_management {
         new TupleReader(
             "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/samples/input/db/data/BoatsBinary");
 
-    List<int[]> tuples = new ArrayList<>();
-    while (reader.loadNextPage()) {
-      ArrayList<int[]> page = reader.readTuplePage();
-      tuples.addAll(page);
-    }
+    List<int[]> tuples = reader.readTuples();
     for (int[] tuple : tuples) {
       for (int i : tuple) {
         System.out.print(i + " ");
@@ -28,8 +25,17 @@ public class test_file_management {
     }
   }
 
-  public static void testWriter() throws IOException {
-    List<int[]> tuples = List.of(new int[] {1, 2, 3}, new int[] {4, 5, 6}, new int[] {4, 5, 6});
+  public static void testReaderCount(int expectedNumberOfTuples) throws IOException {
+    TupleReader reader =
+        new TupleReader(
+            "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/out/initalTest");
+    List<int[]> tuples = reader.readTuples();
+    System.out.println("Expected Number of Tuples: " + expectedNumberOfTuples);
+    System.out.println("Actual Number of Tuples: " + tuples.size());
+  }
+
+  public static void testWriter(int numberToWrite) throws IOException {
+    List<int[]> tuples = generateTuples(numberToWrite);
     String fp =
         "/Users/nicholasvarela/Documents/Cornell/2024-2025/CS_4321/ultralight_database/src/test/resources/out/initalTest";
     TupleWriter tupleWriter = new TupleWriter(fp);
@@ -38,5 +44,13 @@ public class test_file_management {
     }
     tupleWriter.close();
     System.out.println("testWriter done");
+  }
+
+  private static List<int[]> generateTuples(int numberToWrite) {
+    List<int[]> tuples = new ArrayList<>();
+    for (int i = 0; i < numberToWrite; i++) {
+      tuples.add(new int[] {1, 2, 3});
+    }
+    return tuples;
   }
 }
