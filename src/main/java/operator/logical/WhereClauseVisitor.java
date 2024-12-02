@@ -37,5 +37,7 @@ public class WhereClauseVisitor {
     public UnionFind getUnionFind() {
       return this.unionFind;
     }
+
+    
   }
   

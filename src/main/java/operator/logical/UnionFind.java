@@ -143,6 +143,17 @@ public class UnionFind {
       this.upperBound = null;
       this.equalityConstraint = null;
     }
+
+  
+    public Double getLowerBound() {
+      return lowerBound;
+    }
+    public Double getUpperBound() {
+      return upperBound;
+    }
+    public Double getEqualityConstraint() {
+      return equalityConstraint;
+    }
   }
   public static void main(String[] args) {
     UnionFind uf = new UnionFind();
@@ -165,5 +176,6 @@ public class UnionFind {
       System.out.println("Caught expected conflict: " + e.getMessage());
     }
   }
+ 
   
 }
