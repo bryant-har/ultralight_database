@@ -37,6 +37,18 @@ public class WhereClauseVisitor {
     public UnionFind getUnionFind() {
       return this.unionFind;
     }
+    //get lower bound
+    public double getLowerBound(String attr) {
+      return unionFind.find(attr).getLowerBound();
+    }
+    //get upper bound
+    public double getUpperBound(String attr) {
+      return unionFind.find(attr).getUpperBound();
+    }
+    // get the equality constraint 
+    public double getEqualityConstraint(String attr) {
+      return unionFind.find(attr).getEqualityConstraint();
+    }
 
     
   }
