@@ -42,9 +42,7 @@ public class StatsMaker {
             max = Math.max(max, value);
           }
 
-          statsLine.append(" ").append(columnName)
-              .append(",").append(min)
-              .append(",").append(max);
+          statsLine.append(" ").append(columnName).append(",").append(min).append(",").append(max);
         }
 
         writer.write(statsLine.toString());

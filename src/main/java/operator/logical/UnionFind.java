@@ -1,7 +1,7 @@
 package operator.logical;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 public class UnionFind {
 
@@ -178,5 +178,4 @@ public class UnionFind {
       System.out.println("Caught expected conflict: " + e.getMessage());
     }
   }
-
 }

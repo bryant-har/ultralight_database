@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.sf.jsqlparser.expression.DoubleValue;
 import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
 import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
@@ -14,13 +14,10 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.*;
 import operator.logical.*;
-import net.sf.jsqlparser.expression.DoubleValue;
 
 /**
- * The LogicalPlanBuilder class is responsible for constructing a logical query
- * plan from a SQL
- * select statement. It translates the SQL syntax into a tree of logical
- * operators that represent
+ * The LogicalPlanBuilder class is responsible for constructing a logical query plan from a SQL
+ * select statement. It translates the SQL syntax into a tree of logical operators that represent
  * the query's operations.
  */
 public class LogicalPlanBuilder {
@@ -37,8 +34,7 @@ public class LogicalPlanBuilder {
    *
    * @param select The SQL Select statement to build the plan from.
    * @return The root LogicalOperator of the constructed logical plan.
-   * @throws UnsupportedOperationException if the select body is not a
-   *                                       PlainSelect.
+   * @throws UnsupportedOperationException if the select body is not a PlainSelect.
    */
   public LogicalOperator buildPlan(Select select) {
     if (!(select.getSelectBody() instanceof PlainSelect)) {
@@ -49,16 +45,13 @@ public class LogicalPlanBuilder {
     return buildPlanFromPlainSelect(plainSelect);
   }
 
-  /**
-   * Builds a logical plan from a PlainSelect object with Union-Find integration
-   */
+  /** Builds a logical plan from a PlainSelect object with Union-Find integration */
   private LogicalOperator buildPlanFromPlainSelect(PlainSelect plainSelect) {
     // Process WHERE clause first
     Expression whereExpression = plainSelect.getWhere();
     WhereClauseVisitor whereVisitor = new WhereClauseVisitor();
-    List<Expression> residualConditions = whereExpression != null
-        ? whereVisitor.process(whereExpression)
-        : new ArrayList<>();
+    List<Expression> residualConditions =
+        whereExpression != null ? whereVisitor.process(whereExpression) : new ArrayList<>();
 
     LogicalOperator operator = buildFromItem(plainSelect.getFromItem());
 
@@ -78,9 +71,7 @@ public class LogicalPlanBuilder {
                 ? rightTable.getAlias().getName()
                 : rightTable.getName());
         usedTableNames.add(
-            (leftTable.getAlias() != null)
-                ? leftTable.getAlias().getName()
-                : leftTable.getName());
+            (leftTable.getAlias() != null) ? leftTable.getAlias().getName() : leftTable.getName());
 
         List<Expression> leftTableConditions = new ArrayList<>();
         List<Expression> rightTableConditions = new ArrayList<>();
@@ -108,12 +99,14 @@ public class LogicalPlanBuilder {
         Expression rightLocalCondition = buildLocalCondition(rightOperator.getSchema(), unionFind);
 
         if (leftLocalCondition != null || !leftTableConditions.isEmpty()) {
-          Expression combinedLeftCondition = combineConditions(leftLocalCondition, leftTableConditions);
+          Expression combinedLeftCondition =
+              combineConditions(leftLocalCondition, leftTableConditions);
           operator = new LogicalSelectOperator(operator, combinedLeftCondition);
         }
 
         if (rightLocalCondition != null || !rightTableConditions.isEmpty()) {
-          Expression combinedRightCondition = combineConditions(rightLocalCondition, rightTableConditions);
+          Expression combinedRightCondition =
+              combineConditions(rightLocalCondition, rightTableConditions);
           rightOperator = new LogicalSelectOperator(rightOperator, combinedRightCondition);
         }
 
@@ -122,10 +115,7 @@ public class LogicalPlanBuilder {
 
         // Combine with cross product or final join condition
         Expression joinExpression = combineConditions(null, joinConditions);
-        operator = new LogicalJoinOperator(
-            operator,
-            rightOperator,
-            joinExpression);
+        operator = new LogicalJoinOperator(operator, rightOperator, joinExpression);
       }
     }
 
@@ -135,10 +125,11 @@ public class LogicalPlanBuilder {
     }
 
     // selects
-    operator = new LogicalProjectOperator(
-        operator,
-        plainSelect.getSelectItems(),
-        projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
+    operator =
+        new LogicalProjectOperator(
+            operator,
+            plainSelect.getSelectItems(),
+            projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
 
     // ORDER BY
     if (plainSelect.getOrderByElements() != null) {
@@ -163,9 +154,7 @@ public class LogicalPlanBuilder {
     return operator;
   }
 
-  /**
-   * Builds a condition for a schema based on Union-Find constraints
-   */
+  /** Builds a condition for a schema based on Union-Find constraints */
   private Expression buildLocalCondition(List<Column> schema, UnionFind unionFind) {
     List<Expression> localConditions = new ArrayList<>();
 
@@ -173,21 +162,23 @@ public class LogicalPlanBuilder {
       String fullyQualifiedName = col.getFullyQualifiedName();
       UnionFind.UnionElement element = unionFind.find(fullyQualifiedName);
 
-      if (element == null)
-        continue;
+      if (element == null) continue;
 
       // Equality constraint
       Double equalityConstraint = element.getEqualityConstraint();
       if (equalityConstraint != null) {
         localConditions.add(
-            new EqualsTo().withLeftExpression(col).withRightExpression(new DoubleValue(equalityConstraint.toString())));
+            new EqualsTo()
+                .withLeftExpression(col)
+                .withRightExpression(new DoubleValue(equalityConstraint.toString())));
       }
 
       // Lower bound constraint
       Double lowerBound = element.getLowerBound();
       if (lowerBound != null) {
         localConditions.add(
-            new GreaterThanEquals().withLeftExpression(col)
+            new GreaterThanEquals()
+                .withLeftExpression(col)
                 .withRightExpression(new DoubleValue(lowerBound.toString())));
       }
 
@@ -195,7 +186,9 @@ public class LogicalPlanBuilder {
       Double upperBound = element.getUpperBound();
       if (upperBound != null) {
         localConditions.add(
-            new MinorThanEquals().withLeftExpression(col).withRightExpression(new DoubleValue(upperBound.toString())));
+            new MinorThanEquals()
+                .withLeftExpression(col)
+                .withRightExpression(new DoubleValue(upperBound.toString())));
       }
     }
 
@@ -226,13 +219,11 @@ public class LogicalPlanBuilder {
   }
 
   /**
-   * Builds a logical operator from a FromItem (which can be a table or a
-   * subquery).
+   * Builds a logical operator from a FromItem (which can be a table or a subquery).
    *
    * @param fromItem The FromItem to build the operator from.
    * @return A LogicalOperator representing the FromItem.
-   * @throws UnsupportedOperationException if the FromItem is not a Table or
-   *                                       SubSelect.
+   * @throws UnsupportedOperationException if the FromItem is not a Table or SubSelect.
    */
   private LogicalOperator buildFromItem(FromItem fromItem) {
     if (fromItem instanceof Table) {
@@ -251,10 +242,9 @@ public class LogicalPlanBuilder {
   }
 
   /**
-   * Retrieves the columns for a given table from the DBCatalog and applies the
-   * table alias.
+   * Retrieves the columns for a given table from the DBCatalog and applies the table alias.
    *
-   * @param tableName  The name of the table.
+   * @param tableName The name of the table.
    * @param tableAlias The alias of the table.
    * @return A list of Columns for the specified table with the alias applied.
    */
@@ -274,8 +264,7 @@ public class LogicalPlanBuilder {
    * @param inputSchema The input schema to project from.
    * @param selectItems The list of select items specifying the projection.
    * @return A new schema after applying the projection.
-   * @throws IllegalArgumentException if a specified column is not found in the
-   *                                  input schema.
+   * @throws IllegalArgumentException if a specified column is not found in the input schema.
    */
   private List<Column> projectSchema(List<Column> inputSchema, List<SelectItem> selectItems) {
     List<Column> outputSchema = new ArrayList<>();
@@ -289,10 +278,11 @@ public class LogicalPlanBuilder {
           Column col = (Column) sei.getExpression();
           String columnName = col.getColumnName();
 
-          Column matchingColumn = inputSchema.stream()
-              .filter(c -> c.getColumnName().equals(columnName))
-              .findFirst()
-              .orElse(null);
+          Column matchingColumn =
+              inputSchema.stream()
+                  .filter(c -> c.getColumnName().equals(columnName))
+                  .findFirst()
+                  .orElse(null);
 
           if (matchingColumn != null) {
             if (sei.getAlias() != null) {
@@ -304,7 +294,8 @@ public class LogicalPlanBuilder {
             throw new IllegalArgumentException("Column not found in input schema: " + columnName);
           }
         } else {
-          String columnName = sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
+          String columnName =
+              sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
           outputSchema.add(new Column(null, columnName));
         }
       }
