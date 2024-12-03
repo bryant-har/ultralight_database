@@ -23,29 +23,36 @@ public class StatsMaker {
         String tableName = entry.getKey();
         ArrayList<Column> columns = entry.getValue();
 
-        String tablePath = dbDirectory + "/data/" + tableName;
-        TupleReader reader = new TupleReader(tablePath);
+        // Get tuples for this table
+        String filePath = dbDirectory + "/data/" + tableName;
+        TupleReader reader = new TupleReader(filePath);
         List<int[]> tuples = reader.readTuples();
 
-        int tupleCount = tuples.size();
-        StringBuilder statsLine = new StringBuilder();
-        statsLine.append(tableName).append(" ").append(tupleCount);
+        // Format: TableName TupleCount Col1,min,max Col2,min,max ...
+        StringBuilder line = new StringBuilder();
+        line.append(tableName).append(" ");
+        line.append(tuples.size());
 
+        // Stats for each column
         for (int i = 0; i < columns.size(); i++) {
           String columnName = columns.get(i).getColumnName();
           int min = Integer.MAX_VALUE;
           int max = Integer.MIN_VALUE;
 
           for (int[] tuple : tuples) {
-            int value = tuple[i];
-            min = Math.min(min, value);
-            max = Math.max(max, value);
+            min = Math.min(min, tuple[i]);
+            max = Math.max(max, tuple[i]);
           }
 
-          statsLine.append(" ").append(columnName).append(",").append(min).append(",").append(max);
+          line.append(" ")
+              .append(columnName)
+              .append(",")
+              .append(min)
+              .append(",")
+              .append(max);
         }
 
-        writer.write(statsLine.toString());
+        writer.write(line.toString());
         writer.newLine();
         reader.close();
       }

@@ -16,26 +16,20 @@ import net.sf.jsqlparser.statement.select.*;
 import operator.logical.*;
 
 /**
- * The LogicalPlanBuilder class is responsible for constructing a logical query plan from a SQL
- * select statement. It translates the SQL syntax into a tree of logical operators that represent
- * the query's operations.
+ * The LogicalPlanBuilder class is responsible for constructing a logical query
+ * plan from a SQL
+ * select statement. It handles selection pushing using UnionFind and constructs
+ * multi-way joins.
  */
 public class LogicalPlanBuilder {
-  /** Stores mappings of table aliases to their actual table names. */
   private Map<String, String> tableAliases;
+  private DBCatalog dbCatalog;
 
-  /** Constructs a new LogicalPlanBuilder. */
   public LogicalPlanBuilder() {
     this.tableAliases = new HashMap<>();
+    this.dbCatalog = DBCatalog.getInstance();
   }
 
-  /**
-   * Builds a logical plan from a SQL Select statement.
-   *
-   * @param select The SQL Select statement to build the plan from.
-   * @return The root LogicalOperator of the constructed logical plan.
-   * @throws UnsupportedOperationException if the select body is not a PlainSelect.
-   */
   public LogicalOperator buildPlan(Select select) {
     if (!(select.getSelectBody() instanceof PlainSelect)) {
       throw new UnsupportedOperationException("Only PlainSelect is supported");
@@ -45,100 +39,68 @@ public class LogicalPlanBuilder {
     return buildPlanFromPlainSelect(plainSelect);
   }
 
-  /** Builds a logical plan from a PlainSelect object with Union-Find integration */
   private LogicalOperator buildPlanFromPlainSelect(PlainSelect plainSelect) {
-    // Process WHERE clause first
-    Expression whereExpression = plainSelect.getWhere();
-    WhereClauseVisitor whereVisitor = new WhereClauseVisitor();
-    List<Expression> residualConditions =
-        whereExpression != null ? whereVisitor.process(whereExpression) : new ArrayList<>();
-
-    LogicalOperator operator = buildFromItem(plainSelect.getFromItem());
-
-    // Handle JOINs with Union-Find pushed selections donw
+    // Build table alias map for WHERE clause processing
+    Map<String, Table> tableAliasMap = new HashMap<>();
+    addTableAlias(plainSelect.getFromItem(), tableAliasMap);
     List<Join> joins = plainSelect.getJoins();
-    List<Expression> globalResidualJoinConditions = new ArrayList<>();
-
     if (joins != null) {
       for (Join join : joins) {
-        LogicalOperator rightOperator = buildFromItem(join.getRightItem());
-        Table rightTable = (Table) join.getRightItem();
-        Table leftTable = operator.getSchema().get(0).getTable();
-
-        List<String> usedTableNames = new ArrayList<>();
-        usedTableNames.add(
-            (rightTable.getAlias() != null)
-                ? rightTable.getAlias().getName()
-                : rightTable.getName());
-        usedTableNames.add(
-            (leftTable.getAlias() != null) ? leftTable.getAlias().getName() : leftTable.getName());
-
-        List<Expression> leftTableConditions = new ArrayList<>();
-        List<Expression> rightTableConditions = new ArrayList<>();
-        List<Expression> joinConditions = new ArrayList<>();
-
-        for (Expression residual : residualConditions) {
-          // what is going on here?
-          List<String> conditionTables = ExpressionEvaluator.getTablesInExpression(residual);
-          if (conditionTables.size() == 1) {
-            if (usedTableNames.contains(conditionTables.get(0))) {
-              if (conditionTables.get(0).equals(usedTableNames.get(0))) {
-                rightTableConditions.add(residual);
-              } else {
-                leftTableConditions.add(residual);
-              }
-            }
-          } else if (conditionTables.size() > 1) {
-            joinConditions.add(residual);
-          }
-        }
-
-        // Add local conditions based on Union-Find
-        UnionFind unionFind = whereVisitor.getUnionFind();
-        Expression leftLocalCondition = buildLocalCondition(operator.getSchema(), unionFind);
-        Expression rightLocalCondition = buildLocalCondition(rightOperator.getSchema(), unionFind);
-
-        if (leftLocalCondition != null || !leftTableConditions.isEmpty()) {
-          Expression combinedLeftCondition =
-              combineConditions(leftLocalCondition, leftTableConditions);
-          operator = new LogicalSelectOperator(operator, combinedLeftCondition);
-        }
-
-        if (rightLocalCondition != null || !rightTableConditions.isEmpty()) {
-          Expression combinedRightCondition =
-              combineConditions(rightLocalCondition, rightTableConditions);
-          rightOperator = new LogicalSelectOperator(rightOperator, combinedRightCondition);
-        }
-
-        // Collect global residual join conditions
-        globalResidualJoinConditions.addAll(joinConditions);
-
-        // Combine with cross product or final join condition
-        Expression joinExpression = combineConditions(null, joinConditions);
-        operator = new LogicalJoinOperator(operator, rightOperator, joinExpression);
+        addTableAlias(join.getRightItem(), tableAliasMap);
       }
     }
 
-    // Add global residual join conditions to the top-level join operator if needed
-    if (!globalResidualJoinConditions.isEmpty()) {
-      ((LogicalJoinOperator) operator).addAdditionalJoinConditions(globalResidualJoinConditions);
+    // Process WHERE clause using UnionFind
+    Expression whereExpression = plainSelect.getWhere();
+    WhereClauseVisitor whereVisitor = new WhereClauseVisitor(whereExpression, tableAliasMap);
+    List<Expression> residualConditions = whereVisitor.getJoinExpressions();
+    UnionFind unionFind = whereVisitor.getUnionFind();
+
+    // Process the FROM clause and any JOINs
+    List<LogicalOperator> scanOperators = new ArrayList<>();
+
+    // Add the main FROM item
+    FromItem fromItem = plainSelect.getFromItem();
+    scanOperators.add(buildFromItem(fromItem));
+
+    // Process JOIN items if any
+    if (joins != null) {
+      for (Join join : joins) {
+        scanOperators.add(buildFromItem(join.getRightItem()));
+      }
     }
 
-    // selects
-    operator =
-        new LogicalProjectOperator(
-            operator,
-            plainSelect.getSelectItems(),
-            projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
+    // Push down selections to each base table using UnionFind constraints
+    List<LogicalOperator> operatorsWithSelections = new ArrayList<>();
+    for (LogicalOperator scanOp : scanOperators) {
+      Expression localCondition = buildLocalCondition(scanOp.getSchema(), unionFind);
+      if (localCondition != null) {
+        operatorsWithSelections.add(new LogicalSelectOperator(scanOp, localCondition));
+      } else {
+        operatorsWithSelections.add(scanOp);
+      }
+    }
 
-    // ORDER BY
+    // Create multi-way join with remaining conditions
+    LogicalOperator operator = new LogicalJoinOperator(
+        operatorsWithSelections,
+        residualConditions,
+        unionFind);
+
+    // Handle projection
+    operator = new LogicalProjectOperator(
+        operator,
+        plainSelect.getSelectItems(),
+        projectSchema(operator.getSchema(), plainSelect.getSelectItems()));
+
+    // Add ORDER BY if present
     if (plainSelect.getOrderByElements() != null) {
       operator = new LogicalSortOperator(operator, plainSelect.getOrderByElements());
     }
 
-    // DISTINCT
+    // Handle DISTINCT
     if (plainSelect.getDistinct() != null) {
-      // If there's no explicit ORDER BY, add a sort operator before DISTINCT
+      // If there's no explicit ORDER BY, add sort operator before DISTINCT
       if (plainSelect.getOrderByElements() == null) {
         List<OrderByElement> orderByElements = new ArrayList<>();
         for (Column column : operator.getSchema()) {
@@ -154,7 +116,14 @@ public class LogicalPlanBuilder {
     return operator;
   }
 
-  /** Builds a condition for a schema based on Union-Find constraints */
+  private void addTableAlias(FromItem fromItem, Map<String, Table> aliasMap) {
+    if (fromItem instanceof Table) {
+      Table table = (Table) fromItem;
+      String alias = table.getAlias() != null ? table.getAlias().getName() : table.getName();
+      aliasMap.put(alias, table);
+    }
+  }
+
   private Expression buildLocalCondition(List<Column> schema, UnionFind unionFind) {
     List<Expression> localConditions = new ArrayList<>();
 
@@ -162,7 +131,8 @@ public class LogicalPlanBuilder {
       String fullyQualifiedName = col.getFullyQualifiedName();
       UnionFind.UnionElement element = unionFind.find(fullyQualifiedName);
 
-      if (element == null) continue;
+      if (element == null)
+        continue;
 
       // Equality constraint
       Double equalityConstraint = element.getEqualityConstraint();
@@ -195,8 +165,6 @@ public class LogicalPlanBuilder {
     return combineConditions(null, localConditions);
   }
 
-  // create and expression
-
   private Expression combineConditions(Expression existing, List<Expression> newConditions) {
     if (newConditions == null || newConditions.isEmpty()) {
       return existing;
@@ -218,13 +186,6 @@ public class LogicalPlanBuilder {
     return combinedCondition;
   }
 
-  /**
-   * Builds a logical operator from a FromItem (which can be a table or a subquery).
-   *
-   * @param fromItem The FromItem to build the operator from.
-   * @return A LogicalOperator representing the FromItem.
-   * @throws UnsupportedOperationException if the FromItem is not a Table or SubSelect.
-   */
   private LogicalOperator buildFromItem(FromItem fromItem) {
     if (fromItem instanceof Table) {
       Table table = (Table) fromItem;
@@ -241,15 +202,8 @@ public class LogicalPlanBuilder {
     }
   }
 
-  /**
-   * Retrieves the columns for a given table from the DBCatalog and applies the table alias.
-   *
-   * @param tableName The name of the table.
-   * @param tableAlias The alias of the table.
-   * @return A list of Columns for the specified table with the alias applied.
-   */
   private List<Column> getColumnsForTable(String tableName, String tableAlias) {
-    ArrayList<Column> columns = DBCatalog.getInstance().getColumns(tableName);
+    ArrayList<Column> columns = dbCatalog.getColumns(tableName);
     ArrayList<Column> aliasedColumns = new ArrayList<>();
     for (Column col : columns) {
       Table aliasedTable = new Table(tableAlias);
@@ -258,14 +212,6 @@ public class LogicalPlanBuilder {
     return aliasedColumns;
   }
 
-  /**
-   * Projects the input schema based on the select items.
-   *
-   * @param inputSchema The input schema to project from.
-   * @param selectItems The list of select items specifying the projection.
-   * @return A new schema after applying the projection.
-   * @throws IllegalArgumentException if a specified column is not found in the input schema.
-   */
   private List<Column> projectSchema(List<Column> inputSchema, List<SelectItem> selectItems) {
     List<Column> outputSchema = new ArrayList<>();
 
@@ -278,11 +224,10 @@ public class LogicalPlanBuilder {
           Column col = (Column) sei.getExpression();
           String columnName = col.getColumnName();
 
-          Column matchingColumn =
-              inputSchema.stream()
-                  .filter(c -> c.getColumnName().equals(columnName))
-                  .findFirst()
-                  .orElse(null);
+          Column matchingColumn = inputSchema.stream()
+              .filter(c -> c.getColumnName().equals(columnName))
+              .findFirst()
+              .orElse(null);
 
           if (matchingColumn != null) {
             if (sei.getAlias() != null) {
@@ -294,8 +239,7 @@ public class LogicalPlanBuilder {
             throw new IllegalArgumentException("Column not found in input schema: " + columnName);
           }
         } else {
-          String columnName =
-              sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
+          String columnName = sei.getAlias() != null ? sei.getAlias().getName() : "expr_" + outputSchema.size();
           outputSchema.add(new Column(null, columnName));
         }
       }
@@ -304,11 +248,6 @@ public class LogicalPlanBuilder {
     return outputSchema;
   }
 
-  /**
-   * Retrieves the map of table aliases to their actual table names.
-   *
-   * @return A map of table aliases to table names.
-   */
   public Map<String, String> getTableAliases() {
     return tableAliases;
   }

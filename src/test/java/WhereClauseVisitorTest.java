@@ -3,6 +3,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import operator.logical.UnionFind;
 import operator.logical.WhereClauseVisitor;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 class WhereClauseVisitorTest {
@@ -60,7 +61,7 @@ class WhereClauseVisitorTest {
 
   @Test
   void testComplexConstraints() {
-    //  multiple constraints
+    // multiple constraints
     visitor.visitEquality("attr1", "attr2");
     visitor.visitBound("attr1", ">", 5.0);
     visitor.visitBound("attr2", "<", 10.0);
@@ -70,7 +71,7 @@ class WhereClauseVisitorTest {
     UnionFind.UnionElement elt2 = visitor.getUnionFind().find("attr2");
     assertSame(elt1, elt2, "attr1 and attr2 should be in the same union.");
 
-    //  bounds for attr1 (while implicity has attr2 because of the union)
+    // bounds for attr1 (while implicity has attr2 because of the union)
     assertEquals(6.0, visitor.getLowerBound("attr1"), "Lower bound for attr1 should be 6.0.");
     assertEquals(9.0, visitor.getUpperBound("attr1"), "Upper bound for attr1 should be 9.0.");
 

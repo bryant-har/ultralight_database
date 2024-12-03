@@ -12,26 +12,14 @@ import net.sf.jsqlparser.schema.Table;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-/**
- * Class to contain information about database - names of tables, schema of each table and file
- * where each table is located. Uses singleton pattern.
- *
- * <p>Assumes dbDirectory has a schema.txt file and a /data subdirectory containing one file per
- * relation, named "relname".
- *
- * <p>Call by using DBCatalog.getInstance();
- */
 public class DBCatalog {
   private final Logger logger = LogManager.getLogger();
-
   private final HashMap<String, ArrayList<Column>> tables;
   private static DBCatalog db;
-
   private String dbDirectory;
-
   private Map<String, TableStats> tableStats;
 
-  // class to represent statistics for a table
+  // Class to represent statistics for a table
   public static class TableStats {
     public final int tupleCount;
     public final Map<String, ColumnStats> columnStats;
@@ -52,16 +40,11 @@ public class DBCatalog {
     }
   }
 
-  /** Reads schemaFile and populates schema information */
   private DBCatalog() {
-    tables = new HashMap<>();
+    this.tables = new HashMap<>();
+    this.tableStats = new HashMap<>();
   }
 
-  /**
-   * Instance getter for singleton pattern, lazy initialization on first invocation
-   *
-   * @return unique DB catalog instance
-   */
   public static DBCatalog getInstance() {
     if (db == null) {
       db = new DBCatalog();
@@ -69,43 +52,36 @@ public class DBCatalog {
     return db;
   }
 
-  /**
-   * Sets the data directory for the database catalog.
-   *
-   * @param directory: The input directory.
-   */
   public void setDataDirectory(String directory) {
     try {
       dbDirectory = directory;
+
+      // Read schema first
       BufferedReader br = new BufferedReader(new FileReader(directory + "/schema.txt"));
       String line;
       while ((line = br.readLine()) != null) {
         String[] tokens = line.split("\\s");
         String tableName = tokens[0];
-        ArrayList<Column> cols = new ArrayList<Column>();
+        ArrayList<Column> cols = new ArrayList<>();
         for (int i = 1; i < tokens.length; i++) {
           cols.add(new Column(new Table(null, tableName), tokens[i]));
         }
         tables.put(tokens[0], cols);
       }
       br.close();
+
+      // Create and load statistics
+      createAndLoadStats();
+
     } catch (Exception e) {
       logger.error(e.getMessage());
-    }
-
-    // stats part
-    try {
-      createAndLoadStats();
-    } catch (IOException e) {
-      logger.error("Failed to create or load statistics", e);
-      throw new RuntimeException("Failed to initialize database statistics", e);
+      throw new RuntimeException("Failed to initialize database catalog", e);
     }
   }
 
   private void createAndLoadStats() throws IOException {
     StatsMaker statsMaker = new StatsMaker(dbDirectory);
     statsMaker.createStats();
-
     loadStats();
   }
 
@@ -119,6 +95,8 @@ public class DBCatalog {
         int tupleCount = Integer.parseInt(parts[1]);
 
         Map<String, ColumnStats> columnStats = new HashMap<>();
+
+        // Process each column's statistics
         for (int i = 2; i < parts.length; i++) {
           String[] columnParts = parts[i].split(",");
           String columnName = columnParts[0];
@@ -126,11 +104,26 @@ public class DBCatalog {
           int max = Integer.parseInt(columnParts[2]);
           columnStats.put(columnName, new ColumnStats(min, max));
         }
+
+        // Store the table statistics
+        tableStats.put(tableName, new TableStats(tupleCount, columnStats));
       }
     }
   }
 
-  // Getter methods for stats
+  public File getFileForTable(String tableName) {
+    return new File(dbDirectory + "/data/" + tableName);
+  }
+
+  public ArrayList<Column> getColumns(String tableName) {
+    return tables.get(tableName);
+  }
+
+  public HashMap<String, ArrayList<Column>> getTables() {
+    return tables;
+  }
+
+  // Statistics accessor methods
   public TableStats getTableStats(String tableName) {
     return tableStats.get(tableName);
   }
@@ -146,25 +139,5 @@ public class DBCatalog {
       return tableStats.columnStats.get(columnName);
     }
     return null;
-  }
-
-  /**
-   * Gets path to file where a particular table is stored
-   *
-   * @param tableName table name
-   * @return file where table is found on disk
-   */
-  public File getFileForTable(String tableName) {
-    return new File(dbDirectory + "/data/" + tableName);
-  }
-
-  /** Gets the schema of a table */
-  public ArrayList<Column> getColumns(String tableName) {
-    return tables.get(tableName);
-  }
-
-  /** Gets the tables */
-  public HashMap<String, ArrayList<Column>> getTables() {
-    return tables;
   }
 }

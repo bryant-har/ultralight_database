@@ -1,115 +1,247 @@
 package operator.logical;
 
 import java.util.*;
-import net.sf.jsqlparser.expression.*;
-import net.sf.jsqlparser.expression.DoubleValue;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
-import net.sf.jsqlparser.expression.operators.relational.ComparisonOperator;
-import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
+import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
+import operator.logical.UnionFind;
+import net.sf.jsqlparser.expression.DoubleValue;
 
-public class WhereClauseVisitor {
-  private final UnionFind unionFind;
-  private final List<Expression> residualConditions;
+/**
+ * The WhereVisitor class processes the WHERE clause of a SQL query, separating
+ * join conditions from
+ * selection conditions. It identifies whether a condition involves columns from
+ * different tables
+ * (join) or from a single table (selection).
+ */
+public class WhereClauseVisitor extends ExpressionVisitorAdapter {
+  private List<Expression> joinExpressions = new ArrayList<>();
+  private Map<String, Expression> selectExpressions = new HashMap<>();
+  private Map<String, Table> aliasMap;
+  private UnionFind unionFind;
 
+  // Add no-arg constructor for testing
   public WhereClauseVisitor() {
-    this.unionFind = new UnionFind();
-    this.residualConditions = new ArrayList<>();
+    this(null, new HashMap<>());
   }
 
-  /** Processes the WHERE clause and builds union find. */
-  public List<Expression> process(Expression whereClause) {
-    if (whereClause == null) return residualConditions;
+  public WhereClauseVisitor(Expression whereCondition, Map<String, Table> aliasMap) {
+    this.aliasMap = aliasMap;
+    this.unionFind = new UnionFind();
+    if (whereCondition != null) {
+      whereCondition.accept(this);
+    }
+  }
 
-    List<Expression> conditions = extractConditions(whereClause);
-    for (Expression condition : conditions) {
-      if (condition instanceof ComparisonOperator) {
-        processComparison((ComparisonOperator) condition);
+  @Override
+  public void visit(AndExpression andExpr) {
+    andExpr.getLeftExpression().accept(this);
+    andExpr.getRightExpression().accept(this);
+  }
+
+  @Override
+  public void visit(EqualsTo expr) {
+    if (expr.getLeftExpression() instanceof Column && expr.getRightExpression() instanceof Column) {
+      Column leftCol = (Column) expr.getLeftExpression();
+      Column rightCol = (Column) expr.getRightExpression();
+
+      Table leftTable = getTableFromAlias(leftCol.getTable().getName());
+      Table rightTable = getTableFromAlias(rightCol.getTable().getName());
+
+      if (!leftTable.equals(rightTable)) {
+        // Different tables - this is a join condition
+        joinExpressions.add(expr);
+
+        // Also add to UnionFind for constraint propagation
+        UnionFind.UnionElement leftElt = unionFind.find(leftCol.getFullyQualifiedName());
+        UnionFind.UnionElement rightElt = unionFind.find(rightCol.getFullyQualifiedName());
+        unionFind.union(leftElt, rightElt);
       } else {
-        residualConditions.add(condition);
+        // Same table - this is a selection condition
+        selectExpressions.put(
+            leftTable.getName(),
+            mergeExpressions(selectExpressions.get(leftTable.getName()), expr));
+
+        // Still add to UnionFind for potential constraint propagation
+        UnionFind.UnionElement leftElt = unionFind.find(leftCol.getFullyQualifiedName());
+        UnionFind.UnionElement rightElt = unionFind.find(rightCol.getFullyQualifiedName());
+        unionFind.union(leftElt, rightElt);
+      }
+    } else if (expr.getLeftExpression() instanceof Column) {
+      // Column = Value case
+      Column col = (Column) expr.getLeftExpression();
+      if (expr.getRightExpression() instanceof DoubleValue) {
+        Table table = getTableFromAlias(col.getTable().getName());
+        selectExpressions.put(
+            table.getName(),
+            mergeExpressions(selectExpressions.get(table.getName()), expr));
+
+        // Add constraint to UnionFind
+        UnionFind.UnionElement element = unionFind.find(col.getFullyQualifiedName());
+        unionFind.setEqualityConstraint(element, ((DoubleValue) expr.getRightExpression()).getValue());
+      }
+    } else if (expr.getRightExpression() instanceof Column) {
+      // Value = Column case
+      Column col = (Column) expr.getRightExpression();
+      if (expr.getLeftExpression() instanceof DoubleValue) {
+        Table table = getTableFromAlias(col.getTable().getName());
+        selectExpressions.put(
+            table.getName(),
+            mergeExpressions(selectExpressions.get(table.getName()), expr));
+
+        // Add constraint to UnionFind
+        UnionFind.UnionElement element = unionFind.find(col.getFullyQualifiedName());
+        unionFind.setEqualityConstraint(element, ((DoubleValue) expr.getLeftExpression()).getValue());
       }
     }
-
-    return residualConditions;
   }
 
-  /** Processes a comparison operato handling both equality and bounds. */
-  private void processComparison(ComparisonOperator comparison) {
-    Expression left = comparison.getLeftExpression();
-    Expression right = comparison.getRightExpression();
+  // Add handling for inequality comparisons
+  @Override
+  public void visit(GreaterThan expr) {
+    handleComparison(expr, true, false);
+  }
 
-    if (comparison instanceof EqualsTo) {
-      processEquality((EqualsTo) comparison);
-    } else if (left instanceof Column && isNumericValue(right)) {
-      // Handle attribute OP value (e.g., R.A > 5)
-      String attr = ((Column) left).getFullyQualifiedName();
-      double value = extractNumericValue(right);
-      visitBound(attr, comparison.getStringExpression(), value);
+  @Override
+  public void visit(GreaterThanEquals expr) {
+    handleComparison(expr, true, true);
+  }
+
+  @Override
+  public void visit(MinorThan expr) {
+    handleComparison(expr, false, false);
+  }
+
+  @Override
+  public void visit(MinorThanEquals expr) {
+    handleComparison(expr, false, true);
+  }
+
+  private void handleComparison(ComparisonOperator op, boolean isLower, boolean inclusive) {
+    Expression left = op.getLeftExpression();
+    Expression right = op.getRightExpression();
+
+    // Handle Column OP Value case
+    if (left instanceof Column && right instanceof DoubleValue) {
+      Column col = (Column) left;
+      Table table = getTableFromAlias(col.getTable().getName());
+      selectExpressions.put(
+          table.getName(),
+          mergeExpressions(selectExpressions.get(table.getName()), op));
+
+      // Add bound to UnionFind
+      UnionFind.UnionElement element = unionFind.find(col.getFullyQualifiedName());
+      double value = ((DoubleValue) right).getValue();
+      if (isLower) {
+        unionFind.setLowerBound(element, inclusive ? value : value + 1);
+      } else {
+        unionFind.setUpperBound(element, inclusive ? value : value - 1);
+      }
+    }
+    // Handle Value OP Column case
+    else if (right instanceof Column && left instanceof DoubleValue) {
+      Column col = (Column) right;
+      Table table = getTableFromAlias(col.getTable().getName());
+      selectExpressions.put(
+          table.getName(),
+          mergeExpressions(selectExpressions.get(table.getName()), op));
+
+      // Add bound to UnionFind
+      UnionFind.UnionElement element = unionFind.find(col.getFullyQualifiedName());
+      double value = ((DoubleValue) left).getValue();
+      if (isLower) {
+        unionFind.setUpperBound(element, inclusive ? value : value - 1);
+      } else {
+        unionFind.setLowerBound(element, inclusive ? value : value + 1);
+      }
+    }
+    // Handle Column OP Column case
+    else if (left instanceof Column && right instanceof Column) {
+      Column leftCol = (Column) left;
+      Column rightCol = (Column) right;
+      Table leftTable = getTableFromAlias(leftCol.getTable().getName());
+      Table rightTable = getTableFromAlias(rightCol.getTable().getName());
+
+      if (!leftTable.equals(rightTable)) {
+        // Different tables - this is a join condition
+        joinExpressions.add(op);
+      } else {
+        // Same table - this is a selection condition
+        selectExpressions.put(
+            leftTable.getName(),
+            mergeExpressions(selectExpressions.get(leftTable.getName()), op));
+      }
+    }
+  }
+
+  // Keep existing helper methods
+  private Table getTableFromAlias(String alias) {
+    return aliasMap.get(alias);
+  }
+
+  private Expression mergeExpressions(Expression existingExpr, Expression newExpr) {
+    if (existingExpr == null) {
+      return newExpr;
     } else {
-      // Add to residual conditions if not in the expected format
-      residualConditions.add(comparison);
+      return new AndExpression(existingExpr, newExpr);
     }
   }
 
-  /** Processes equality conditions */
-  private void processEquality(EqualsTo equality) {
-    Expression left = equality.getLeftExpression();
-    Expression right = equality.getRightExpression();
-
-    if (left instanceof Column && right instanceof Column) {
-      visitEquality(
-          ((Column) left).getFullyQualifiedName(), ((Column) right).getFullyQualifiedName());
-    } else if (left instanceof Column && isNumericValue(right)) {
-      String attr = ((Column) left).getFullyQualifiedName();
-      double value = extractNumericValue(right);
-      visitBound(attr, "=", value);
-    } else {
-      // not supported, it is set aside
-      residualConditions.add(equality);
-    }
+  public List<Expression> getJoinExpressions() {
+    return joinExpressions;
   }
 
-  /** Extracts individual conditions from an AND expression. */
-  private List<Expression> extractConditions(Expression expr) {
-    List<Expression> conditions = new ArrayList<>();
-    if (expr instanceof AndExpression) {
-      conditions.addAll(extractConditions(((AndExpression) expr).getLeftExpression()));
-      conditions.addAll(extractConditions(((AndExpression) expr).getRightExpression()));
-    } else {
-      conditions.add(expr);
-    }
-    return conditions;
-  }
-
-  private void visitEquality(String attr1, String attr2) {
-    unionFind.union(unionFind.find(attr1), unionFind.find(attr2));
-  }
-
-  private void visitBound(String attr, String operator, double value) {
-    UnionFind.UnionElement elt = unionFind.find(attr);
-    switch (operator) {
-      case "=" -> unionFind.setEqualityConstraint(elt, value);
-      case "<" -> unionFind.setUpperBound(elt, value - 1);
-      case "<=" -> unionFind.setUpperBound(elt, value);
-      case ">" -> unionFind.setLowerBound(elt, value + 1);
-      case ">=" -> unionFind.setLowerBound(elt, value);
-    }
-  }
-
-  private boolean isNumericValue(Expression expr) {
-    return expr instanceof LongValue || expr instanceof DoubleValue;
-  }
-
-  private double extractNumericValue(Expression expr) {
-    if (expr instanceof LongValue) {
-      return ((LongValue) expr).getValue();
-    } else if (expr instanceof DoubleValue) {
-      return ((DoubleValue) expr).getValue();
-    }
-    throw new IllegalArgumentException("Expression is not a numeric value");
+  public Map<String, Expression> getSelectExpressions() {
+    return selectExpressions;
   }
 
   public UnionFind getUnionFind() {
-    return this.unionFind;
+    return unionFind;
+  }
+
+  public void visitEquality(String attr1, String attr2) {
+    UnionFind.UnionElement elt1 = unionFind.find(attr1);
+    UnionFind.UnionElement elt2 = unionFind.find(attr2);
+    unionFind.union(elt1, elt2);
+  }
+
+  public void visitBound(String attr, String operator, double value) {
+    UnionFind.UnionElement element = unionFind.find(attr);
+    switch (operator) {
+      case "=":
+        unionFind.setEqualityConstraint(element, value);
+        break;
+      case "<":
+        unionFind.setUpperBound(element, value - 1);
+        break;
+      case "<=":
+        unionFind.setUpperBound(element, value);
+        break;
+      case ">":
+        unionFind.setLowerBound(element, value + 1);
+        break;
+      case ">=":
+        unionFind.setLowerBound(element, value);
+        break;
+    }
+  }
+
+  // Add these accessor methods for testing
+  public Double getLowerBound(String attr) {
+    UnionFind.UnionElement element = unionFind.find(attr);
+    return element != null ? element.getLowerBound() : null;
+  }
+
+  public Double getUpperBound(String attr) {
+    UnionFind.UnionElement element = unionFind.find(attr);
+    return element != null ? element.getUpperBound() : null;
+  }
+
+  public Double getEqualityConstraint(String attr) {
+    UnionFind.UnionElement element = unionFind.find(attr);
+    return element != null ? element.getEqualityConstraint() : null;
   }
 }

@@ -89,7 +89,8 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
   }
 
   private String normalizeTableName(Table table) {
-    if (table == null) return "";
+    if (table == null)
+      return "";
     return table.getAlias() != null ? table.getAlias().getName() : table.getName();
   }
 
@@ -108,18 +109,16 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
   public List<Column> getLeftSortColumns() {
     logger.info("Returning {} left columns", leftColumns.size());
     leftColumns.forEach(
-        col ->
-            logger.debug(
-                "Left column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
+        col -> logger.debug(
+            "Left column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
     return leftColumns;
   }
 
   public List<Column> getRightSortColumns() {
     logger.info("Returning {} right columns", rightColumns.size());
     rightColumns.forEach(
-        col ->
-            logger.debug(
-                "Right column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
+        col -> logger.debug(
+            "Right column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
     return rightColumns;
   }
 
