@@ -25,10 +25,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public class P3UnitTests {
   private static final String INPUT_DIR = "src/test/resources/samples/input";
-  private static final String EXPECTED_DIR = "src/test/resources/samples/expected";
-  private static final String QUERIES_FILE = INPUT_DIR + "/p2.sql";
+  private static final String EXPECTED_DIR = "src/test/resources/samples/expected_output_p3";
+  private static final String QUERIES_FILE = INPUT_DIR + "/p3.sql";
   private static final String CONFIG_FILE = INPUT_DIR + "/plan_builder_config.txt";
-  private static final String DB_DIR = INPUT_DIR + "/db_p2";
+  private static final String DB_DIR = INPUT_DIR + "/db_p3";
   private static final String INDEX_DIR = DB_DIR + "/indexes";
 
   @BeforeAll
@@ -83,13 +83,13 @@ public class P3UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+  @ValueSource(ints = { 1, 2, 3, 4, 5 })
   public void testQueriesWithoutIndexes(int idx) throws Exception {
     runTest(idx, false);
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+  @ValueSource(ints = { 1, 2, 3, 4, 5 })
   public void testQueriesWithIndexes(int idx) throws Exception {
     // Build indexes before running tests with indexes
     buildIndexes();
@@ -104,10 +104,9 @@ public class P3UnitTests {
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder =
-        new PhysicalPlanBuilder(
-            logicalPlanBuilder.getTableAliases(), INDEX_DIR // Pass the index directory path
-            );
+    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
+        logicalPlanBuilder.getTableAliases(), INDEX_DIR // Pass the index directory path
+    );
 
     Statement statement = statements.get(idx - 1);
     System.out.println("Executing query: " + statement.toString());
@@ -118,8 +117,7 @@ public class P3UnitTests {
       Operator physicalPlan = physicalPlanBuilder.getResult();
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
-      List<String> actualOutputString =
-          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+      List<String> actualOutputString = actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       List<String> expectedOutput = readExpectedOutput(idx);
 
