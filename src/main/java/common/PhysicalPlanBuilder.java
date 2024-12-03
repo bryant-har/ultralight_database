@@ -1,19 +1,31 @@
 package common;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import join_algorithms.BNLJ;
 import join_algorithms.SMJ;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.OrderByElement;
-import operator.logical.*;
-import operator.physical.*;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import operator.logical.LogicalDuplicateEliminationOperator;
+import operator.logical.LogicalJoinOperator;
+import operator.logical.LogicalOperator;
+import operator.logical.LogicalProjectOperator;
+import operator.logical.LogicalScanOperator;
+import operator.logical.LogicalSelectOperator;
+import operator.logical.LogicalSortOperator;
+import operator.logical.UnionFind;
+import operator.physical.DuplicateElementEliminationOperator;
+import operator.physical.ExternalSort;
+import operator.physical.IndexScanOperator;
+import operator.physical.Operator;
+import operator.physical.ProjectOperator;
+import operator.physical.ScanOperator;
+import operator.physical.SelectOperator;
 
 public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   private Operator result;
@@ -98,7 +110,7 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   @Override
   public void visit(LogicalProjectOperator op) {
     op.getChildren().get(0).accept(this);
-    result = new ProjectOperator(result, op.getSelectItems());
+    result = new ProjectOperator(result, op.getSchema(), op.getSelectItems());
   }
 
   @Override

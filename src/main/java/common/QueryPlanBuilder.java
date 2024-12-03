@@ -86,7 +86,7 @@ public class QueryPlanBuilder {
 
     // Apply projection using a ProjectOperator
     List<SelectItem> selectItems = plainSelect.getSelectItems();
-    root = new ProjectOperator(root, selectItems);
+    root = new ProjectOperator(root, root.getOutputSchema(),selectItems);
 
     // Handle the ORDER BY clause
     List<OrderByElement> orderByElements = plainSelect.getOrderByElements();

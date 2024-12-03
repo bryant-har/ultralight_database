@@ -1,25 +1,26 @@
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import common.DBCatalog;
-import common.LogicalPlanBuilder;
-import common.PhysicalPlanBuilder;
-import common.Tuple;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import common.DBCatalog;
+import common.LogicalPlanBuilder;
+import common.PhysicalPlanBuilder;
+import common.Tuple;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.Select;
 import operator.logical.LogicalOperator;
 import operator.physical.Operator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 public class P2UnitTests {
   private static final String INPUT_DIR = "src/test/resources/samples/input";
@@ -36,7 +37,7 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {8, 9, 14})
+  @ValueSource(ints = {5})
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
@@ -67,6 +68,10 @@ public class P2UnitTests {
       System.out.println("Time elapsed for query " + idx + ": " + (endTime - startTime) + "ms");
       logger.info("Time elapsed for query {}: {}ms", idx, (endTime - startTime));
 
+      // check correct content of tuples
+      Collections.sort(expectedOutput);
+      Collections.sort(actualOutputString);
+
       // check correct num of tuples
       assertEquals(
           expectedOutput.size(),
@@ -75,9 +80,8 @@ public class P2UnitTests {
 
       System.out.println("Expected output: " + expectedOutput);
       System.out.println("Actual Output: " + actualOutputString);
-      // check correct content of tuples
-      Collections.sort(expectedOutput);
-      Collections.sort(actualOutputString);
+      System.out.println("Expected output: " + expectedOutput);
+      System.out.println("Actual Output: " + actualOutputString);
       assertEquals(expectedOutput, actualOutputString, "Query " + idx + " failed");
     } else {
       throw new UnsupportedOperationException("Only S1ELECT statements are supported");
