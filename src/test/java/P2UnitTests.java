@@ -36,7 +36,7 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {8, 9, 14})
+  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
