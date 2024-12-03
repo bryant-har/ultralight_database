@@ -144,31 +144,33 @@ public class UnionFind {
       this.equalityConstraint = null;
     }
 
-  
     public Double getLowerBound() {
       return lowerBound;
     }
+
     public Double getUpperBound() {
       return upperBound;
     }
+
     public Double getEqualityConstraint() {
       return equalityConstraint;
     }
   }
+
   public static void main(String[] args) {
     UnionFind uf = new UnionFind();
-  
+
     UnionFind.UnionElement elt1 = uf.find("A");
     UnionFind.UnionElement elt2 = uf.find("B");
     UnionFind.UnionElement elt3 = uf.find("C");
-  
+
     uf.union(elt1, elt2);
     assert uf.find("A") == uf.find("B");
-  
+
     uf.setLowerBound(elt1, 10);
     uf.setUpperBound(elt2, 20);
     assert elt1.lowerBound == 10 && elt1.upperBound == 20;
-  
+
     try {
       uf.setEqualityConstraint(elt3, 15);
       uf.setLowerBound(elt3, 20); // Should throw an exception
@@ -176,6 +178,5 @@ public class UnionFind {
       System.out.println("Caught expected conflict: " + e.getMessage());
     }
   }
- 
-  
+
 }
