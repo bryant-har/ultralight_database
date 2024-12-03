@@ -1,8 +1,9 @@
 package operator.physical;
 
-import common.Tuple;
 import java.util.ArrayList;
 import java.util.List;
+
+import common.Tuple;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.SelectExpressionItem;
@@ -30,13 +31,13 @@ public class ProjectOperator extends Operator {
    * @param child The input operator that provides the tuples to be projected
    * @param selectItems The list of columns or expressions to select
    */
-  public ProjectOperator(Operator child, List<SelectItem> selectItems) {
+  public ProjectOperator(Operator child, List<Column> canonicalSchema, List<SelectItem> selectItems) {
     super(new ArrayList<>());
     this.child = child;
     this.selectItems = selectItems;
     // Set up the projection mapping between the input schema and the projected
     // schema
-    setupProjection();
+    setupProjection(canonicalSchema); // Canonical schema retained in case of join shuffling by join optimizer.
   }
 
   /**
@@ -44,7 +45,7 @@ public class ProjectOperator extends Operator {
    * selected column, it finds its corresponding index in the child schema. If all columns are
    * selected, it includes all columns from the child schema.
    */
-  private void setupProjection() {
+  private void setupProjection(List<Column> canonicalSchema) {
     projectionIndexes = new ArrayList<>();
     ArrayList<Column> childSchema = child.getOutputSchema();
     ArrayList<Column> newSchema = new ArrayList<>();
@@ -54,9 +55,14 @@ public class ProjectOperator extends Operator {
       // If the select item represents all columns (SELECT *), add all columns from
       // the child schema
       if (item instanceof AllColumns) {
-        for (int i = 0; i < childSchema.size(); i++) {
-          projectionIndexes.add(i);
-          newSchema.add(childSchema.get(i));
+        // Use canonical schema if *, due to join optimizer shuffling order.
+        for (int i = 0; i < canonicalSchema.size(); i++) {
+          for (int j = 0; j < childSchema.size(); j++) {
+            if (childSchema.get(j).getFullyQualifiedName().equals(canonicalSchema.get(i).getFullyQualifiedName())) {
+              projectionIndexes.add(j);
+              newSchema.add(childSchema.get(j));
+            }
+          }
         }
       }
       // If the select item is a specific column
