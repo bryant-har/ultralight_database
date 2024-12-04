@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import net.sf.jsqlparser.expression.DoubleValue;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
@@ -223,10 +222,9 @@ public class WhereClauseVisitor extends ExpressionVisitorAdapter {
     if (right instanceof LongValue r) {
       right = new DoubleValue(r.getStringValue());
     }
-    if (left instanceof LongValue l ) {
+    if (left instanceof LongValue l) {
       left = new DoubleValue(l.getStringValue());
     }
-
 
     if (left instanceof Column && right instanceof DoubleValue) {
       // Column OP Value case
