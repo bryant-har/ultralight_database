@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import net.sf.jsqlparser.expression.DoubleValue;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
@@ -12,8 +13,24 @@ import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
 import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
-import net.sf.jsqlparser.statement.select.*;
-import operator.logical.*;
+import net.sf.jsqlparser.statement.select.AllColumns;
+import net.sf.jsqlparser.statement.select.FromItem;
+import net.sf.jsqlparser.statement.select.Join;
+import net.sf.jsqlparser.statement.select.OrderByElement;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.SelectExpressionItem;
+import net.sf.jsqlparser.statement.select.SelectItem;
+import net.sf.jsqlparser.statement.select.SubSelect;
+import operator.logical.LogicalDuplicateEliminationOperator;
+import operator.logical.LogicalJoinOperator;
+import operator.logical.LogicalOperator;
+import operator.logical.LogicalProjectOperator;
+import operator.logical.LogicalScanOperator;
+import operator.logical.LogicalSelectOperator;
+import operator.logical.LogicalSortOperator;
+import operator.logical.UnionFind;
+import operator.logical.WhereClauseVisitor;
 
 /**
  * The LogicalPlanBuilder class is responsible for constructing a logical query plan from a SQL

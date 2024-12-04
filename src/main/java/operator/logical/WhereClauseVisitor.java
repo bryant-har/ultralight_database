@@ -1,11 +1,21 @@
 package operator.logical;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import net.sf.jsqlparser.expression.DoubleValue;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitorAdapter;
+import net.sf.jsqlparser.expression.LongValue;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
-import net.sf.jsqlparser.expression.operators.relational.*;
+import net.sf.jsqlparser.expression.operators.relational.ComparisonOperator;
+import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
+import net.sf.jsqlparser.expression.operators.relational.GreaterThan;
+import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
+import net.sf.jsqlparser.expression.operators.relational.MinorThan;
+import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 
@@ -210,6 +220,13 @@ public class WhereClauseVisitor extends ExpressionVisitorAdapter {
   private void handleComparison(ComparisonOperator op, boolean isLower, boolean inclusive) {
     Expression left = op.getLeftExpression();
     Expression right = op.getRightExpression();
+    if (right instanceof LongValue r) {
+      right = new DoubleValue(r.getStringValue());
+    }
+    if (left instanceof LongValue l ) {
+      left = new DoubleValue(l.getStringValue());
+    }
+
 
     if (left instanceof Column && right instanceof DoubleValue) {
       // Column OP Value case

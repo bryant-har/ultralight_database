@@ -1,25 +1,26 @@
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import common.DBCatalog;
-import common.LogicalPlanBuilder;
-import common.PhysicalPlanBuilder;
-import common.Tuple;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import common.DBCatalog;
+import common.LogicalPlanBuilder;
+import common.PhysicalPlanBuilder;
+import common.Tuple;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.select.Select;
 import operator.logical.LogicalOperator;
 import operator.physical.Operator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 public class P2UnitTests {
   private static final String INPUT_DIR = "src/test/resources/samples/input";
@@ -36,7 +37,7 @@ public class P2UnitTests {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+  @ValueSource(ints = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
   public void testQueries(int idx) throws Exception {
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
@@ -48,7 +49,7 @@ public class P2UnitTests {
             );
 
     Statement statement = statements.get(idx - 1);
-    if (statement instanceof Select) {
+     if (statement instanceof Select) {
 
       LogicalOperator logicalPlan = logicalPlanBuilder.buildPlan((Select) statement);
       long startTime = System.currentTimeMillis();

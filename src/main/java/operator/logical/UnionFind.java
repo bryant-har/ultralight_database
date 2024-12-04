@@ -94,8 +94,7 @@ public class UnionFind {
 
     if (root1.rank < root2.rank) {
       root1.parent = root2;
-    } else if (root1.rank > root2.rank) {
-      root2.parent = root1;
+      root2.rank++;
     } else {
       root2.parent = root1;
       root1.rank++;
@@ -122,15 +121,19 @@ public class UnionFind {
     }
 
     // Merge bounds
-    Double newLower =
-        (root1.lowerBound != null && root2.lowerBound != null)
-            ? Math.max(root1.lowerBound, root2.lowerBound)
-            : (root1.lowerBound != null ? root1.lowerBound : root2.lowerBound);
+    Double newLower = null;
+    Double newUpper = null;
+    if (root1.lowerBound != null && root2.lowerBound != null) {
+      newLower = Math.max(root1.lowerBound, root2.lowerBound);
+    } else {
+      newLower = root1.lowerBound != null ? root1.lowerBound : root2.lowerBound;
+    }
 
-    Double newUpper =
-        (root1.upperBound != null && root2.upperBound != null)
-            ? Math.min(root1.upperBound, root2.upperBound)
-            : (root1.upperBound != null ? root1.upperBound : root2.upperBound);
+    if (root1.upperBound != null && root2.upperBound != null) {
+      newUpper = Math.min(root1.upperBound, root2.upperBound);
+    } else {
+      newUpper = root1.upperBound != null ? root1.upperBound : root2.upperBound;
+    }
 
     if (newLower != null && newUpper != null && newLower > newUpper) {
       throw new IllegalStateException("Inconsistent bounds after union");
