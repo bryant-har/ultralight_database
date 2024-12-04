@@ -11,10 +11,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 /**
- * The JoinConditionAnalyzer class is responsible for analyzing join conditions
- * in a SQL query, specifically handling equi-joins (conditions of the form
- * `table1.column1 = table2.column2`). It extracts the relevant columns from
- * join conditions and validates the equi-join structure.
+ * The JoinConditionAnalyzer class is responsible for analyzing join conditions in a SQL query,
+ * specifically handling equi-joins (conditions of the form `table1.column1 = table2.column2`). It
+ * extracts the relevant columns from join conditions and validates the equi-join structure.
  */
 public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
   private static final Logger logger = LogManager.getLogger(JoinConditionAnalyzer.class);
@@ -27,7 +26,7 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
   /**
    * Constructs a JoinConditionAnalyzer for a specific pair of tables.
    *
-   * @param leftTableName  The name of the left table in the join.
+   * @param leftTableName The name of the left table in the join.
    * @param rightTableName The name of the right table in the join.
    */
   public JoinConditionAnalyzer(String leftTableName, String rightTableName) {
@@ -105,7 +104,7 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
    * Logs details about a column, including its table and alias.
    *
    * @param side The side of the join ("Left" or "Right").
-   * @param col  The column to log.
+   * @param col The column to log.
    */
   private void logColumnDetails(String side, Column col) {
     Table table = col.getTable();
@@ -126,8 +125,7 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
    * @return The normalized table name.
    */
   private String normalizeTableName(Table table) {
-    if (table == null)
-      return ""; // Return an empty string if the table is null
+    if (table == null) return ""; // Return an empty string if the table is null
     return table.getAlias() != null ? table.getAlias().getName() : table.getName();
   }
 
@@ -157,8 +155,9 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
   public List<Column> getLeftSortColumns() {
     logger.info("Returning {} left columns", leftColumns.size());
     leftColumns.forEach(
-        col -> logger.debug(
-            "Left column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
+        col ->
+            logger.debug(
+                "Left column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
     return leftColumns;
   }
 
@@ -170,8 +169,9 @@ public class JoinConditionAnalyzer extends ExpressionVisitorAdapter {
   public List<Column> getRightSortColumns() {
     logger.info("Returning {} right columns", rightColumns.size());
     rightColumns.forEach(
-        col -> logger.debug(
-            "Right column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
+        col ->
+            logger.debug(
+                "Right column: {}.{}", normalizeTableName(col.getTable()), col.getColumnName()));
     return rightColumns;
   }
 
