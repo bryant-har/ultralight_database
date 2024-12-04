@@ -9,35 +9,69 @@ import java.util.ArrayList;
 import java.util.List;
 import net.sf.jsqlparser.schema.Column;
 
+/**
+ * The {@code IndexScanOperator} class implements an operator for scanning a relation using a B+
+ * tree index. It supports both clustered and unclustered indices and provides range-based filtering
+ * on indexed attributes.
+ *
+ * <p>The operator works by traversing the B+ tree to identify the relevant leaf nodes, and then
+ * retrieves tuples based on the range specified by the low and high keys.
+ *
+ * <h2>Features</h2>
+ *
+ * <ul>
+ *   <li>Supports clustered and unclustered indices.
+ *   <li>Performs range-based scans using a lower and upper bound on the indexed attribute.
+ *   <li>Efficiently reads tuples using a {@code RandomAccessFile} for unclustered indices or a
+ *       {@link TupleReader} for clustered indices.
+ * </ul>
+ *
+ * <h2>Usage</h2>
+ *
+ * <pre>{@code
+ * ArrayList<Column> schema = ...; // Define the output schema
+ * String relationName = "myTable";
+ * String indexFile = "path/to/index/file";
+ * boolean isClustered = true;
+ * Integer lowKey = 10;  // Lower bound for the scan
+ * Integer highKey = 50; // Upper bound for the scan
+ *
+ * IndexScanOperator scanOperator = new IndexScanOperator(schema, relationName, indexFile, isClustered, lowKey, highKey);
+ * Tuple tuple;
+ * while ((tuple = scanOperator.getNextTuple()) != null) {
+ *     System.out.println(tuple);
+ * }
+ * }</pre>
+ */
 public class IndexScanOperator extends Operator {
-  private static final int PAGE_SIZE = 4096;
-  private final String relationName;
-  private final String indexFile;
-  private final boolean isClustered;
-  private final Integer lowKey;
-  private final Integer highKey;
+  private static final int PAGE_SIZE = 4096; // Size of a page in bytes
+  private final String relationName; // Name of the relation to scan
+  private final String indexFile; // Path to the index file
+  private final boolean isClustered; // Whether the index is clustered
+  private final Integer lowKey; // Lower bound of the range (inclusive, null for unbounded)
+  private final Integer highKey; // Upper bound of the range (inclusive, null for unbounded)
 
-  private RandomAccessFile indexRAF;
-  private RandomAccessFile dataFileRAF;
-  private ByteBuffer buffer;
-  private int rootAddress;
-  private int currentLeafPage;
-  private int currentEntryIndex;
-  private List<int[]> currentRids;
-  private int currentRidIndex;
-  private List<int[]> allTuples; // For clustered index
-  private int currentTupleIndex; // For clustered index
-  private boolean initialized;
+  private RandomAccessFile indexRAF; // RandomAccessFile for index file
+  private RandomAccessFile dataFileRAF; // RandomAccessFile for data file
+  private ByteBuffer buffer; // Buffer to store page data
+  private int rootAddress; // Address of the root node in the B+ tree
+  private int currentLeafPage; // Current leaf page being scanned
+  private int currentEntryIndex; // Index of the current entry in the leaf page
+  private List<int[]> currentRids; // List of record IDs (RIDs) for the current entry
+  private int currentRidIndex; // Index of the current RID in the list
+  private List<int[]> allTuples; // List of all tuples for clustered index
+  private int currentTupleIndex; // Index of the current tuple for clustered index
+  private boolean initialized; // Indicates if the operator has been initialized
 
   /**
    * Constructs an IndexScanOperator for scanning a relation using a B+ tree index.
    *
-   * @param outputSchema The schema of the output tuples
-   * @param relationName The name of the relation to scan
-   * @param indexFile Path to the index file
-   * @param isClustered Whether the index is clustered
-   * @param lowKey Lower bound of the range to scan (null for unbounded)
-   * @param highKey Upper bound of the range to scan (null for unbounded)
+   * @param outputSchema The schema of the output tuples.
+   * @param relationName The name of the relation to scan.
+   * @param indexFile Path to the index file.
+   * @param isClustered Whether the index is clustered.
+   * @param lowKey Lower bound of the range to scan (null for unbounded).
+   * @param highKey Upper bound of the range to scan (null for unbounded).
    */
   public IndexScanOperator(
       ArrayList<Column> outputSchema,
@@ -61,25 +95,29 @@ public class IndexScanOperator extends Operator {
 
   /**
    * Initializes the operator by opening necessary files and performing initial B+ tree traversal.
+   *
+   * @throws IOException If an I/O error occurs during initialization.
    */
   private void initialize() throws IOException {
-    if (initialized) return;
+    if (initialized) {
+      return;
+    }
 
-    // Open index and data files
+    // Open the index and data files
     indexRAF = new RandomAccessFile(indexFile, "r");
     String dataFilePath = DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath();
     dataFileRAF = new RandomAccessFile(dataFilePath, "r");
 
-    // Read root address from header page
+    // Read the root address from the header page
     readPage(0);
     rootAddress = buffer.getInt(0);
 
-    // Traverse to first leaf node that could contain keys in our range
+    // Traverse to the starting leaf node
     currentLeafPage = findStartLeaf(rootAddress);
     currentEntryIndex = 0;
 
     if (isClustered) {
-      // For clustered index, read all tuples at once since they're sequential
+      // For clustered indices, read all tuples sequentially
       readPage(currentLeafPage);
       if (!readNextEntry()) {
         return;
@@ -88,7 +126,7 @@ public class IndexScanOperator extends Operator {
         return;
       }
 
-      // Read all tuples using TupleReader
+      // Use TupleReader to read tuples for clustered indices
       try (TupleReader reader = new TupleReader(dataFilePath)) {
         allTuples = reader.readTuples();
         currentTupleIndex = currentRids.get(0)[1]; // Start from the first matching tuple
@@ -98,7 +136,13 @@ public class IndexScanOperator extends Operator {
     initialized = true;
   }
 
-  /** Finds the leaf node where scanning should start based on the low key. */
+  /**
+   * Finds the starting leaf node for the scan based on the low key.
+   *
+   * @param nodeAddress Address of the current node in the B+ tree.
+   * @return Address of the starting leaf node.
+   * @throws IOException If an I/O error occurs during traversal.
+   */
   private int findStartLeaf(int nodeAddress) throws IOException {
     readPage(nodeAddress);
     int nodeType = buffer.getInt(0);
@@ -107,28 +151,32 @@ public class IndexScanOperator extends Operator {
       return nodeAddress;
     }
 
-    // Index node - find appropriate child
+    // Index node - find the appropriate child node
     int numKeys = buffer.getInt(4);
     int keyOffset = 8;
     int childOffset = 8 + (numKeys * 4);
 
-    // If no low key, go to leftmost leaf
+    // If no low key is specified, go to the leftmost child
     if (lowKey == null) {
       return findStartLeaf(buffer.getInt(childOffset));
     }
 
-    // Find first key greater than low key
-    for (int i = 0; i < numKeys; i++) {
+    // Find the child pointer before the first key greater than the low key
+    int i;
+    for (i = 0; i < numKeys; i++) {
       if (buffer.getInt(keyOffset + i * 4) > lowKey) {
-        return findStartLeaf(buffer.getInt(childOffset + i * 4));
+        break;
       }
     }
-
-    // All keys less than low key, use rightmost child
-    return findStartLeaf(buffer.getInt(childOffset + numKeys * 4));
+    return findStartLeaf(buffer.getInt(childOffset + i * 4));
   }
 
-  /** Reads the next data entry from current leaf node into currentRids. */
+  /**
+   * Reads the next data entry from the current leaf node into {@code currentRids}.
+   *
+   * @return {@code true} if a valid entry was read; {@code false} otherwise.
+   * @throws IOException If an I/O error occurs during reading.
+   */
   private boolean readNextEntry() throws IOException {
     if (buffer.getInt(0) != 0) { // Not a leaf node
       return false;
@@ -136,10 +184,18 @@ public class IndexScanOperator extends Operator {
 
     int numEntries = buffer.getInt(4);
     if (currentEntryIndex >= numEntries) {
-      return false;
+      // Move to the next leaf page
+      int nextLeafPage = buffer.getInt(PAGE_SIZE - 4); // Last 4 bytes store the next leaf pointer
+      if (nextLeafPage == -1) {
+        return false;
+      }
+      readPage(nextLeafPage);
+      currentLeafPage = nextLeafPage;
+      currentEntryIndex = 0;
+      return readNextEntry();
     }
 
-    // Calculate offset to current entry
+    // Calculate the offset for the current entry
     int offset = 8;
     for (int i = 0; i < currentEntryIndex; i++) {
       int numRids = buffer.getInt(offset + 4);
@@ -147,9 +203,12 @@ public class IndexScanOperator extends Operator {
     }
 
     int key = buffer.getInt(offset);
-    // Check if we've passed high key
-    if (highKey != null && key > highKey) {
+    if (highKey != null && key > highKey) { // Check the upper bound
       return false;
+    }
+    if (lowKey != null && key < lowKey) { // Check the lower bound
+      currentEntryIndex++;
+      return readNextEntry();
     }
 
     int numRids = buffer.getInt(offset + 4);
@@ -167,13 +226,19 @@ public class IndexScanOperator extends Operator {
     return true;
   }
 
-  /** Reads a page from the index file into the buffer. */
+  /**
+   * Reads a page from the index file into the buffer.
+   *
+   * @param pageNum The page number to read.
+   * @throws IOException If an I/O error occurs during reading.
+   */
   private void readPage(int pageNum) throws IOException {
     buffer.clear();
     indexRAF.seek(pageNum * PAGE_SIZE);
     indexRAF.read(buffer.array());
   }
 
+  /** Resets the operator to its initial state, closing all open resources. */
   @Override
   public void reset() {
     try {
@@ -195,6 +260,11 @@ public class IndexScanOperator extends Operator {
     }
   }
 
+  /**
+   * Retrieves the next tuple from the index scan.
+   *
+   * @return The next tuple, or {@code null} if no more tuples are available.
+   */
   @Override
   public Tuple getNextTuple() {
     try {
@@ -203,20 +273,16 @@ public class IndexScanOperator extends Operator {
       }
 
       while (true) {
-        // If we have more RIDs in current entry
         if (currentRidIndex < currentRids.size()) {
           int[] rid = currentRids.get(currentRidIndex++);
 
           if (isClustered) {
-            // For clustered index, read sequentially from buffered tuples
             if (currentTupleIndex < allTuples.size()) {
               return new Tuple(allTuples.get(currentTupleIndex++));
             }
             return null;
           } else {
-            // For unclustered index, seek to specific tuple
             dataFileRAF.seek(rid[0] * PAGE_SIZE + rid[1] * 4);
-            // Read tuple at that position
             byte[] tupleData = new byte[outputSchema.size() * 4];
             dataFileRAF.read(tupleData);
             ByteBuffer tupleBuffer = ByteBuffer.wrap(tupleData);
@@ -229,9 +295,7 @@ public class IndexScanOperator extends Operator {
           }
         }
 
-        // Need to move to next entry
         if (!readNextEntry()) {
-          // No more entries in current leaf
           return null;
         }
       }
@@ -241,6 +305,7 @@ public class IndexScanOperator extends Operator {
     }
   }
 
+  /** Ensures that resources are closed when the object is garbage collected. */
   @Override
   protected void finalize() throws Throwable {
     reset();

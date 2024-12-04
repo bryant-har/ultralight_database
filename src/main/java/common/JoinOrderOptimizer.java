@@ -1,29 +1,43 @@
 package common;
 
-import operator.physical.Operator;
-import operator.physical.ScanOperator;
+import java.util.*;
 import net.sf.jsqlparser.expression.BinaryExpression;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.relational.ComparisonOperator;
 import net.sf.jsqlparser.expression.operators.relational.EqualsTo;
 import net.sf.jsqlparser.schema.Column;
 import operator.logical.UnionFind;
-import java.util.*;
+import operator.physical.Operator;
+import operator.physical.ScanOperator;
 
+/**
+ * The JoinOrderOptimizer class is responsible for finding the optimal join order for a query using
+ * a cost-based dynamic programming approach. It takes into account the sizes of relations,
+ * selectivity of join conditions, and intermediate results.
+ */
 public class JoinOrderOptimizer {
-  private final List<Operator> baseOperators;
-  private final List<Expression> joinConditions;
-  private final UnionFind unionFind;
-  private final DBCatalog dbCatalog;
+  private final List<Operator> baseOperators; // List of base relation operators
+  private final List<Expression> joinConditions; // List of join conditions
+  private final UnionFind unionFind; // UnionFind structure for equality constraints
+  private final DBCatalog dbCatalog; // Database catalog for metadata
 
   // Dynamic programming tables
-  private Map<BitSet, Integer> dpCost;
-  private Map<BitSet, List<Integer>> dpOrder;
-  private Map<BitSet, Integer> dpSize;
-  private Map<BitSet, Map<String, Integer>> dpVValues;
-  private Map<BitSet, List<Expression>> dpConditions;
+  private Map<BitSet, Integer> dpCost; // Stores the minimum cost for subsets
+  private Map<BitSet, List<Integer>> dpOrder; // Stores the optimal order for subsets
+  private Map<BitSet, Integer> dpSize; // Stores the estimated size for subsets
+  private Map<BitSet, Map<String, Integer>> dpVValues; // Stores V-values (distinct values)
+  private Map<BitSet, List<Expression>> dpConditions; // Stores join conditions for subsets
 
-  public JoinOrderOptimizer(List<Operator> baseOperators,
+  /**
+   * Constructs the JoinOrderOptimizer with the given inputs.
+   *
+   * @param baseOperators List of base relation operators.
+   * @param joinConditions List of join conditions.
+   * @param unionFind UnionFind structure for equality constraints.
+   * @param dbCatalog Database catalog for metadata.
+   */
+  public JoinOrderOptimizer(
+      List<Operator> baseOperators,
       List<Expression> joinConditions,
       UnionFind unionFind,
       DBCatalog dbCatalog) {
@@ -32,16 +46,17 @@ public class JoinOrderOptimizer {
     this.unionFind = unionFind;
     this.dbCatalog = dbCatalog;
 
-    // Initialize DP tables
+    // Initialize dynamic programming tables
     this.dpCost = new HashMap<>();
     this.dpOrder = new HashMap<>();
     this.dpSize = new HashMap<>();
     this.dpVValues = new HashMap<>();
     this.dpConditions = new HashMap<>();
 
-    computeOptimalJoinOrder();
+    computeOptimalJoinOrder(); // Compute the optimal join order
   }
 
+  /** Computes the optimal join order using a dynamic programming approach. */
   private void computeOptimalJoinOrder() {
     int n = baseOperators.size();
 
@@ -65,7 +80,7 @@ public class JoinOrderOptimizer {
       // Size is the relation size after any selections
       dpSize.put(set, estimateBaseSize(op));
 
-      // V-values are from catalog, adjusted for selections
+      // V-values are from the catalog, adjusted for selections
       dpVValues.put(set, computeBaseVValues(op));
 
       // No join conditions for single relation
@@ -96,14 +111,16 @@ public class JoinOrderOptimizer {
           List<Expression> applicableConditions = findApplicableConditions(leftSet, rightSet);
 
           // Compute join size and cost
-          int joinSize = estimateJoinSize(leftSize, rightSize,
-              leftVValues, rightVValues,
-              applicableConditions);
+          int joinSize =
+              estimateJoinSize(
+                  leftSize, rightSize, leftVValues, rightVValues, applicableConditions);
 
-          int totalCost = dpCost.get(leftSet) + dpCost.get(rightSet) +
-              (size == n ? 0 : joinSize);
+          int totalCost =
+              dpCost.get(leftSet)
+                  + dpCost.get(rightSet)
+                  + (size == n ? 0 : joinSize); // Avoid adding join size for the final join
 
-          // Update best plan if this is better
+          // Update the best plan if this is better
           if (totalCost < bestCost) {
             bestCost = totalCost;
 
@@ -111,9 +128,8 @@ public class JoinOrderOptimizer {
             bestOrder = new ArrayList<>(dpOrder.get(leftSet));
             bestOrder.addAll(dpOrder.get(rightSet));
 
-            // Now pass joinSize to combineVValues
-            bestVValues = combineVValues(leftVValues, rightVValues,
-                applicableConditions, joinSize);
+            // Combine V-values and conditions
+            bestVValues = combineVValues(leftVValues, rightVValues, applicableConditions, joinSize);
 
             bestConditions = new ArrayList<>(dpConditions.get(leftSet));
             bestConditions.addAll(dpConditions.get(rightSet));
@@ -133,6 +149,7 @@ public class JoinOrderOptimizer {
     }
   }
 
+  /** Generates all subsets of a given size from a set of n elements. */
   private Set<BitSet> generateSubsets(int n, int size) {
     Set<BitSet> subsets = new HashSet<>();
     BitSet set = new BitSet(n);
@@ -140,8 +157,9 @@ public class JoinOrderOptimizer {
     return subsets;
   }
 
-  private void generateSubsetsHelper(int start, int remainingSize, int n,
-      BitSet current, Set<BitSet> subsets) {
+  /** Helper method to generate subsets recursively. */
+  private void generateSubsetsHelper(
+      int start, int remainingSize, int n, BitSet current, Set<BitSet> subsets) {
     if (remainingSize == 0) {
       subsets.add((BitSet) current.clone());
       return;
@@ -154,6 +172,7 @@ public class JoinOrderOptimizer {
     }
   }
 
+  /** Generates all possible splits of a subset into two disjoint subsets. */
   private Set<BitSet> generateAllSplits(BitSet set) {
     Set<BitSet> splits = new HashSet<>();
     BitSet split = new BitSet(set.length());
@@ -161,8 +180,9 @@ public class JoinOrderOptimizer {
     return splits;
   }
 
-  private void generateSplitsHelper(int position, BitSet original,
-      BitSet current, Set<BitSet> splits) {
+  /** Helper method to generate splits recursively. */
+  private void generateSplitsHelper(
+      int position, BitSet original, BitSet current, Set<BitSet> splits) {
     if (position >= original.length()) {
       if (!current.isEmpty() && current.cardinality() < original.cardinality()) {
         splits.add((BitSet) current.clone());
@@ -184,6 +204,7 @@ public class JoinOrderOptimizer {
     current.clear(position);
   }
 
+  /** Finds applicable join conditions for two disjoint subsets. */
   private List<Expression> findApplicableConditions(BitSet leftSet, BitSet rightSet) {
     List<Expression> applicable = new ArrayList<>();
     for (Expression condition : joinConditions) {
@@ -194,33 +215,31 @@ public class JoinOrderOptimizer {
     return applicable;
   }
 
+  /** Checks if a condition is applicable to two disjoint subsets. */
   private boolean isConditionApplicable(Expression condition, BitSet leftSet, BitSet rightSet) {
-    // Get tables involved in condition
     Set<String> conditionTables = getTablesInCondition(condition);
 
-    // Check if condition spans exactly these two sets
     boolean usesLeft = false;
     boolean usesRight = false;
     boolean usesOther = false;
 
     for (String table : conditionTables) {
       int index = getTableIndex(table);
-      if (leftSet.get(index))
-        usesLeft = true;
-      else if (rightSet.get(index))
-        usesRight = true;
-      else
-        usesOther = true;
+      if (leftSet.get(index)) usesLeft = true;
+      else if (rightSet.get(index)) usesRight = true;
+      else usesOther = true;
     }
 
     return usesLeft && usesRight && !usesOther;
   }
 
-  private int estimateJoinSize(int leftSize, int rightSize,
+  /** Estimates the size of the result of a join. */
+  private int estimateJoinSize(
+      int leftSize,
+      int rightSize,
       Map<String, Integer> leftVValues,
       Map<String, Integer> rightVValues,
       List<Expression> conditions) {
-    // Start with cross product size
     double joinSize = leftSize * rightSize;
 
     for (Expression condition : conditions) {
@@ -228,57 +247,33 @@ public class JoinOrderOptimizer {
         Column leftCol = getLeftColumn(condition);
         Column rightCol = getRightColumn(condition);
 
-        // Try full names first
         String leftKey = leftCol.getFullyQualifiedName();
         String rightKey = rightCol.getFullyQualifiedName();
 
-        // Fallback to just column names if needed
-        Integer leftV = leftVValues.get(leftKey);
-        if (leftV == null) {
-          leftV = leftVValues.get(leftCol.getColumnName());
-        }
+        Integer leftV = leftVValues.getOrDefault(leftKey, 100);
+        Integer rightV = rightVValues.getOrDefault(rightKey, 100);
 
-        Integer rightV = rightVValues.get(rightKey);
-        if (rightV == null) {
-          rightV = rightVValues.get(rightCol.getColumnName());
-        }
-
-        // Default values if still null
-        if (leftV == null)
-          leftV = 100;
-        if (rightV == null)
-          rightV = 100;
-
-        // Apply reduction
         joinSize /= Math.max(leftV, rightV);
       }
     }
 
-    // Return at least 1 tuple
     return Math.max(1, (int) joinSize);
   }
 
+  /** Computes the V-values for a base operator. */
   private Map<String, Integer> computeBaseVValues(Operator op) {
     Map<String, Integer> vValues = new HashMap<>();
     String tableName = getTableName(op);
 
-    // For each column in schema
     for (Column col : op.getOutputSchema()) {
       String columnName = col.getColumnName();
       DBCatalog.ColumnStats stats = dbCatalog.getColumnStats(tableName, columnName);
 
       if (stats != null) {
-        // V-value is number of distinct values possible in range
         int distinctValues = Math.abs(stats.maxValue - stats.minValue) + 1;
-
-        // Store using fully qualified name as key
-        String fullyQualifiedName = col.getFullyQualifiedName();
-        vValues.put(fullyQualifiedName, distinctValues);
-
-        // Also store using just column name as backup
+        vValues.put(col.getFullyQualifiedName(), distinctValues);
         vValues.put(columnName, distinctValues);
       } else {
-        // If no stats, use a default value
         vValues.put(col.getFullyQualifiedName(), 100);
         vValues.put(columnName, 100);
       }
@@ -287,17 +282,17 @@ public class JoinOrderOptimizer {
     return vValues;
   }
 
-  private Map<String, Integer> combineVValues(Map<String, Integer> leftVValues,
+  /** Combines the V-values of two subsets after a join. */
+  private Map<String, Integer> combineVValues(
+      Map<String, Integer> leftVValues,
       Map<String, Integer> rightVValues,
       List<Expression> conditions,
       int joinSize) {
     Map<String, Integer> combined = new HashMap<>();
 
-    // First copy all V-values (preservation rule)
     combined.putAll(leftVValues);
     combined.putAll(rightVValues);
 
-    // Apply equality constraints (minimum rule)
     for (Expression condition : conditions) {
       if (isEquiJoinCondition(condition)) {
         Column leftCol = getLeftColumn(condition);
@@ -308,10 +303,7 @@ public class JoinOrderOptimizer {
         int leftV = leftVValues.getOrDefault(leftKey, 100);
         int rightV = rightVValues.getOrDefault(rightKey, 100);
 
-        // Take minimum of V-values for joined columns
         int minV = Math.min(leftV, rightV);
-
-        // Clamp to result size
         minV = Math.min(minV, joinSize);
 
         combined.put(leftKey, minV);
@@ -319,7 +311,6 @@ public class JoinOrderOptimizer {
       }
     }
 
-    // Clamp all V-values to join size
     for (Map.Entry<String, Integer> entry : combined.entrySet()) {
       entry.setValue(Math.min(entry.getValue(), joinSize));
     }
@@ -327,18 +318,21 @@ public class JoinOrderOptimizer {
     return combined;
   }
 
+  /** Estimates the size of a base operator. */
   private int estimateBaseSize(Operator op) {
     if (op instanceof ScanOperator) {
       String tableName = getTableName(op);
       return dbCatalog.getTableTupleCount(tableName);
     }
-    return 1000; // Default estimate for other operators
+    return 1000;
   }
 
+  /** Gets the table name associated with an operator. */
   private String getTableName(Operator op) {
     return op.getOutputSchema().get(0).getTable().getName();
   }
 
+  /** Gets the index of a table in the list of base operators. */
   private int getTableIndex(String tableName) {
     for (int i = 0; i < baseOperators.size(); i++) {
       if (getTableName(baseOperators.get(i)).equals(tableName)) {
@@ -348,9 +342,7 @@ public class JoinOrderOptimizer {
     return -1;
   }
 
-  /**
-   * Gets the list of table names involved in a join condition
-   */
+  /** Gets the set of table names involved in a join condition. */
   private Set<String> getTablesInCondition(Expression condition) {
     Set<String> tables = new HashSet<>();
     if (condition instanceof EqualsTo) {
@@ -381,22 +373,18 @@ public class JoinOrderOptimizer {
     return tables;
   }
 
-  /**
-   * Checks if a condition is an equality join condition
-   */
+  /** Checks if a condition is an equality join condition. */
   private boolean isEquiJoinCondition(Expression condition) {
     if (!(condition instanceof EqualsTo)) {
       return false;
     }
 
     EqualsTo equals = (EqualsTo) condition;
-    return equals.getLeftExpression() instanceof Column &&
-        equals.getRightExpression() instanceof Column;
+    return equals.getLeftExpression() instanceof Column
+        && equals.getRightExpression() instanceof Column;
   }
 
-  /**
-   * Gets the left column from a binary condition
-   */
+  /** Gets the left column from a binary condition. */
   private Column getLeftColumn(Expression condition) {
     if (condition instanceof BinaryExpression) {
       Expression left = ((BinaryExpression) condition).getLeftExpression();
@@ -407,9 +395,7 @@ public class JoinOrderOptimizer {
     throw new IllegalArgumentException("Not a valid join condition");
   }
 
-  /**
-   * Gets the right column from a binary condition
-   */
+  /** Gets the right column from a binary condition. */
   private Column getRightColumn(Expression condition) {
     if (condition instanceof BinaryExpression) {
       Expression right = ((BinaryExpression) condition).getRightExpression();
@@ -420,13 +406,14 @@ public class JoinOrderOptimizer {
     throw new IllegalArgumentException("Not a valid join condition");
   }
 
-  // Public accessor methods
+  /** Gets the optimal join order as a list of indices. */
   public List<Integer> getOptimalOrder() {
     BitSet allTables = new BitSet(baseOperators.size());
     allTables.set(0, baseOperators.size());
     return dpOrder.get(allTables);
   }
 
+  /** Gets the join conditions for the optimal join order. */
   public List<Expression> getJoinConditions() {
     BitSet allTables = new BitSet(baseOperators.size());
     allTables.set(0, baseOperators.size());

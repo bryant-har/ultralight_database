@@ -1,9 +1,8 @@
 package operator.physical;
 
+import common.Tuple;
 import java.util.ArrayList;
 import java.util.List;
-
-import common.Tuple;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.AllColumns;
 import net.sf.jsqlparser.statement.select.SelectExpressionItem;
@@ -31,13 +30,15 @@ public class ProjectOperator extends Operator {
    * @param child The input operator that provides the tuples to be projected
    * @param selectItems The list of columns or expressions to select
    */
-  public ProjectOperator(Operator child, List<Column> canonicalSchema, List<SelectItem> selectItems) {
+  public ProjectOperator(
+      Operator child, List<Column> canonicalSchema, List<SelectItem> selectItems) {
     super(new ArrayList<>());
     this.child = child;
     this.selectItems = selectItems;
     // Set up the projection mapping between the input schema and the projected
     // schema
-    setupProjection(canonicalSchema); // Canonical schema retained in case of join shuffling by join optimizer.
+    setupProjection(
+        canonicalSchema); // Canonical schema retained in case of join shuffling by join optimizer.
   }
 
   /**
@@ -58,7 +59,10 @@ public class ProjectOperator extends Operator {
         // Use canonical schema if *, due to join optimizer shuffling order.
         for (int i = 0; i < canonicalSchema.size(); i++) {
           for (int j = 0; j < childSchema.size(); j++) {
-            if (childSchema.get(j).getFullyQualifiedName().equals(canonicalSchema.get(i).getFullyQualifiedName())) {
+            if (childSchema
+                .get(j)
+                .getFullyQualifiedName()
+                .equals(canonicalSchema.get(i).getFullyQualifiedName())) {
               projectionIndexes.add(j);
               newSchema.add(childSchema.get(j));
             }

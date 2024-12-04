@@ -2,15 +2,12 @@ package operator.logical;
 
 import common.LogicalOperatorVisitor;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.schema.Column;
-import net.sf.jsqlparser.schema.Table;
 
 /**
- * Represents a logical join operator in a query plan. This operator combines
- * two child operators
+ * Represents a logical join operator in a query plan. This operator combines two child operators
  * (left and right) based on a join condition.
  */
 public class LogicalJoinOperator extends LogicalOperator {
@@ -18,9 +15,8 @@ public class LogicalJoinOperator extends LogicalOperator {
   private List<Expression> residualConditions;
   private UnionFind unionFind;
 
-  public LogicalJoinOperator(List<LogicalOperator> children,
-      List<Expression> residualConditions,
-      UnionFind unionFind) {
+  public LogicalJoinOperator(
+      List<LogicalOperator> children, List<Expression> residualConditions, UnionFind unionFind) {
     super(combineSchemas(children));
     this.children = children;
     this.residualConditions = residualConditions;
