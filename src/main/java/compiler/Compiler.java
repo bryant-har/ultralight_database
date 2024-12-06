@@ -1,5 +1,6 @@
 package compiler;
 
+import common.BulkLoader;
 import common.DBCatalog;
 import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
@@ -7,6 +8,7 @@ import file_management.TupleWriter;
 import java.io.File;
 import java.io.IOException;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
 import net.sf.jsqlparser.statement.select.Select;
@@ -15,6 +17,11 @@ import operator.physical.Operator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Main compiler class that handles query processing and index management.
+ * Supports both query
+ * evaluation and index building based on configuration.
+ */
 public class Compiler {
   private static final Logger logger = LogManager.getLogger();
   private static String inputDir;
@@ -40,18 +47,19 @@ public class Compiler {
 
       // Read queries from queries.sql
       String queriesPath = inputDir + File.separator + "queries.sql";
-      String queriesContent =
-          new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(queriesPath)));
+      String queriesContent = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(queriesPath)));
       Statements statements = CCJSqlParserUtil.parseStatements(queriesContent);
 
       // Create builders
+      // Create builders
       LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
       String indexDir = dbDir + File.separator + "indexes";
-      PhysicalPlanBuilder physicalPlanBuilder =
-          new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), indexDir);
+      PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), indexDir);
+      new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), indexDir);
 
       // Process each query
       int queryCount = 1;
+      // Process each query
       for (Statement statement : statements.getStatements()) {
         if (statement instanceof Select) {
           // Generate and execute query plan
