@@ -9,17 +9,13 @@ import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 
 /**
- * ExpressionEvaluator handles the evaluation of SQL expressions within the
- * query processing system.
- * It extends ExpressionVisitorAdapter to visit and evaluate different types of
- * SQL expressions.
- * The evaluator supports basic comparison operations, logical AND operations,
- * and handles column
+ * ExpressionEvaluator handles the evaluation of SQL expressions within the query processing system.
+ * It extends ExpressionVisitorAdapter to visit and evaluate different types of SQL expressions. The
+ * evaluator supports basic comparison operations, logical AND operations, and handles column
  * references with proper table alias resolution.
  *
- * This class is primarily used for evaluating WHERE clause conditions and JOIN
- * conditions
- * in the context of query execution.
+ * <p>This class is primarily used for evaluating WHERE clause conditions and JOIN conditions in the
+ * context of query execution.
  */
 public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   /** Current tuple being evaluated */
@@ -38,32 +34,32 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   private Map<String, String> tableAliases;
 
   /**
-   * Prunes a WHERE condition based on available tables.
-   * Removes conditions that reference tables not available in the current
-   * context.
-   * This is particularly useful for implementing join operations where conditions
-   * need to be split between different operators.
+   * Prunes a WHERE condition based on available tables. Removes conditions that reference tables
+   * not available in the current context. This is particularly useful for implementing join
+   * operations where conditions need to be split between different operators.
    *
-   * @param whereCondition      The WHERE condition expression to prune
-   * @param availableTableNames List of table names that are available in the
-   *                            current context
-   * @return The pruned expression, or null if the entire expression should be
-   *         removed
+   * @param whereCondition The WHERE condition expression to prune
+   * @param availableTableNames List of table names that are available in the current context
+   * @return The pruned expression, or null if the entire expression should be removed
    */
   static Expression pruneWhereCondition(
       Expression whereCondition, List<String> availableTableNames) {
     if (whereCondition instanceof AndExpression) {
       AndExpression andExpression = (AndExpression) whereCondition;
-      Expression prunedRight = pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
-      Expression prunedLeft = pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
+      Expression prunedRight =
+          pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
+      Expression prunedLeft =
+          pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
       if (prunedRight == null || prunedLeft == null) {
         return (prunedRight == null) ? prunedLeft : prunedRight;
       }
       return new AndExpression(prunedLeft, prunedRight);
     } else if (whereCondition instanceof ComparisonOperator) {
       ComparisonOperator comparisonOperator = (ComparisonOperator) whereCondition;
-      Expression prunedLeft = pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
-      Expression prunedRight = pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
+      Expression prunedLeft =
+          pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
+      Expression prunedRight =
+          pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
       // left and right expressions should represent columns or constants
       if (prunedLeft == null || prunedRight == null) {
         return null;
@@ -89,11 +85,11 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   }
 
   /**
-   * Evaluates an expression against a given tuple and schema.
-   * This is the main entry point for expression evaluation.
+   * Evaluates an expression against a given tuple and schema. This is the main entry point for
+   * expression evaluation.
    *
-   * @param expr   The expression to evaluate
-   * @param tuple  The tuple to evaluate against
+   * @param expr The expression to evaluate
+   * @param tuple The tuple to evaluate against
    * @param schema The schema defining the structure of the tuple
    * @return The boolean result of the expression evaluation
    */
@@ -118,8 +114,7 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   }
 
   /**
-   * Visits and evaluates a column reference by looking up its value in the
-   * current tuple.
+   * Visits and evaluates a column reference by looking up its value in the current tuple.
    *
    * @param column The column reference to evaluate
    * @throws IllegalArgumentException if the column is not found in the schema
@@ -131,9 +126,10 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
 
     // Determine if the column is qualified with an alias
     if (column.getTable() != null) {
-      tableAlias = column.getTable().getAlias() != null
-          ? column.getTable().getAlias().getName()
-          : column.getTable().getName(); // Use actual table name if alias is absent
+      tableAlias =
+          column.getTable().getAlias() != null
+              ? column.getTable().getAlias().getName()
+              : column.getTable().getName(); // Use actual table name if alias is absent
     }
 
     // Get the index of the column in the tuple schema
@@ -244,8 +240,8 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   }
 
   /**
-   * Finds the index of a column in the schema based on the alias and column name.
-   * This method handles table aliases properly to support self-joins.
+   * Finds the index of a column in the schema based on the alias and column name. This method
+   * handles table aliases properly to support self-joins.
    *
    * @param tableAlias The alias of the table or null if none
    * @param columnName The name of the column
@@ -255,9 +251,10 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     for (int i = 0; i < schema.size(); i++) {
       Column schemaColumn = schema.get(i);
       String schemaColumnName = schemaColumn.getColumnName();
-      String schemaTableAlias = schemaColumn.getTable().getAlias() != null
-          ? schemaColumn.getTable().getAlias().getName()
-          : schemaColumn.getTable().getName();
+      String schemaTableAlias =
+          schemaColumn.getTable().getAlias() != null
+              ? schemaColumn.getTable().getAlias().getName()
+              : schemaColumn.getTable().getName();
 
       // Prioritize alias match over table name match
       if (schemaColumnName.equals(columnName)

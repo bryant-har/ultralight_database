@@ -8,19 +8,15 @@ import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 
 /**
- * SelectionAnalyzer analyzes SQL selection conditions to determine which parts
- * can be handled
- * using an index and which parts must be processed through regular selection.
- * 
- * This class analyzes expressions to:
- * - Identify conditions that can use an index (e.g., column comparisons with
- * constants)
- * - Determine index scan ranges (lowKey and highKey)
- * - Track remaining conditions that must be handled by regular selection
- * 
- * The analyzer handles various comparison operations (=, >, >=, <, <=) and
- * combines
- * multiple conditions through AND operations to determine optimal index usage.
+ * SelectionAnalyzer analyzes SQL selection conditions to determine which parts can be handled using
+ * an index and which parts must be processed through regular selection.
+ *
+ * <p>This class analyzes expressions to: - Identify conditions that can use an index (e.g., column
+ * comparisons with constants) - Determine index scan ranges (lowKey and highKey) - Track remaining
+ * conditions that must be handled by regular selection
+ *
+ * <p>The analyzer handles various comparison operations (=, >, >=, <, <=) and combines multiple
+ * conditions through AND operations to determine optimal index usage.
  */
 public class SelectionAnalyzer extends ExpressionVisitorAdapter {
   /** The table being indexed */
@@ -44,7 +40,7 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
   /**
    * Constructs a SelectionAnalyzer for a specific indexed table and column.
    *
-   * @param indexedTable  The name of the table containing the indexed column
+   * @param indexedTable The name of the table containing the indexed column
    * @param indexedColumn The name of the indexed column
    */
   public SelectionAnalyzer(String indexedTable, String indexedColumn) {
@@ -54,9 +50,8 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
   }
 
   /**
-   * Processes AND expressions by combining the results of both operands.
-   * For index conditions, this means taking the more restrictive bounds
-   * (higher low key and lower high key).
+   * Processes AND expressions by combining the results of both operands. For index conditions, this
+   * means taking the more restrictive bounds (higher low key and lower high key).
    *
    * @param andExpression The AND expression to analyze
    */
@@ -120,8 +115,7 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
    * Extracts an integer value from an expression if possible.
    *
    * @param expr The expression to evaluate
-   * @return The integer value, or null if the expression is not a constant
-   *         integer
+   * @return The integer value, or null if the expression is not a constant integer
    */
   private Integer getValueFromExpression(Expression expr) {
     if (expr instanceof LongValue) {
@@ -181,16 +175,13 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
   }
 
   /**
-   * Processes comparison operations to determine if and how they can use the
-   * index.
-   * Updates lowKey and highKey based on the comparison, or adds the condition to
-   * remainingConditions if it cannot use the index.
+   * Processes comparison operations to determine if and how they can use the index. Updates lowKey
+   * and highKey based on the comparison, or adds the condition to remainingConditions if it cannot
+   * use the index.
    *
-   * @param expr      The comparison operation to process
-   * @param isLower   true if this establishes a lower bound, false for upper
-   *                  bound
-   * @param inclusive true if the comparison is inclusive (>=, <=), false for
-   *                  exclusive (>, <)
+   * @param expr The comparison operation to process
+   * @param isLower true if this establishes a lower bound, false for upper bound
+   * @param inclusive true if the comparison is inclusive (>=, <=), false for exclusive (>, <)
    */
   private void processComparisonOperation(
       ComparisonOperator expr, boolean isLower, boolean inclusive) {
