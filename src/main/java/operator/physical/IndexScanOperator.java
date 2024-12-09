@@ -10,26 +10,20 @@ import java.util.List;
 import net.sf.jsqlparser.schema.Column;
 
 /**
- * The {@code IndexScanOperator} class implements an operator for scanning a
- * relation using a B+
- * tree index. It supports both clustered and unclustered indices and provides
- * range-based filtering
+ * The {@code IndexScanOperator} class implements an operator for scanning a relation using a B+
+ * tree index. It supports both clustered and unclustered indices and provides range-based filtering
  * on indexed attributes.
  *
- * <p>
- * The operator works by traversing the B+ tree to identify the relevant leaf
- * nodes, and then
+ * <p>The operator works by traversing the B+ tree to identify the relevant leaf nodes, and then
  * retrieves tuples based on the range specified by the low and high keys.
  *
  * <h2>Features</h2>
  *
  * <ul>
- * <li>Supports clustered and unclustered indices.
- * <li>Performs range-based scans using a lower and upper bound on the indexed
- * attribute.
- * <li>Efficiently reads tuples using a {@code RandomAccessFile} for unclustered
- * indices or a
- * {@link TupleReader} for clustered indices.
+ *   <li>Supports clustered and unclustered indices.
+ *   <li>Performs range-based scans using a lower and upper bound on the indexed attribute.
+ *   <li>Efficiently reads tuples using a {@code RandomAccessFile} for unclustered indices or a
+ *       {@link TupleReader} for clustered indices.
  * </ul>
  *
  * <h2>Usage</h2>
@@ -70,15 +64,14 @@ public class IndexScanOperator extends Operator {
   private boolean initialized; // Indicates if the operator has been initialized
 
   /**
-   * Constructs an IndexScanOperator for scanning a relation using a B+ tree
-   * index.
+   * Constructs an IndexScanOperator for scanning a relation using a B+ tree index.
    *
    * @param outputSchema The schema of the output tuples.
    * @param relationName The name of the relation to scan.
-   * @param indexFile    Path to the index file.
-   * @param isClustered  Whether the index is clustered.
-   * @param lowKey       Lower bound of the range to scan (null for unbounded).
-   * @param highKey      Upper bound of the range to scan (null for unbounded).
+   * @param indexFile Path to the index file.
+   * @param isClustered Whether the index is clustered.
+   * @param lowKey Lower bound of the range to scan (null for unbounded).
+   * @param highKey Upper bound of the range to scan (null for unbounded).
    */
   public IndexScanOperator(
       ArrayList<Column> outputSchema,
@@ -101,8 +94,7 @@ public class IndexScanOperator extends Operator {
   }
 
   /**
-   * Initializes the operator by opening necessary files and performing initial B+
-   * tree traversal.
+   * Initializes the operator by opening necessary files and performing initial B+ tree traversal.
    *
    * @throws IOException If an I/O error occurs during initialization.
    */
@@ -180,8 +172,7 @@ public class IndexScanOperator extends Operator {
   }
 
   /**
-   * Reads the next data entry from the current leaf node into
-   * {@code currentRids}.
+   * Reads the next data entry from the current leaf node into {@code currentRids}.
    *
    * @return {@code true} if a valid entry was read; {@code false} otherwise.
    * @throws IOException If an I/O error occurs during reading.
@@ -227,7 +218,7 @@ public class IndexScanOperator extends Operator {
     for (int i = 0; i < numRids; i++) {
       int pageId = buffer.getInt(offset + i * 8);
       int tupleId = buffer.getInt(offset + i * 8 + 4);
-      currentRids.add(new int[] { pageId, tupleId });
+      currentRids.add(new int[] {pageId, tupleId});
     }
 
     currentEntryIndex++;

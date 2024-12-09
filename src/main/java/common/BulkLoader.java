@@ -7,20 +7,14 @@ import java.util.*;
 import net.sf.jsqlparser.schema.Column;
 
 /**
- * BulkLoader class implements functionality to build B+ tree indexes for
- * database relations. This
- * class handles both clustered and unclustered indexes, following the bulk
- * loading algorithm which
+ * BulkLoader class implements functionality to build B+ tree indexes for database relations. This
+ * class handles both clustered and unclustered indexes, following the bulk loading algorithm which
  * constructs the tree bottom-up for optimal space utilization.
  *
- * <p>
- * The tree has an order 'd' where: - Leaf nodes must have between d and 2d data
- * entries - Index
+ * <p>The tree has an order 'd' where: - Leaf nodes must have between d and 2d data entries - Index
  * nodes must have between d and 2d keys, and d+1 to 2d+1 child pointers
  *
- * <p>
- * The implementation uses Alternative (3) format where leaf nodes contain data
- * entries of the
+ * <p>The implementation uses Alternative (3) format where leaf nodes contain data entries of the
  * form <key, list of RIDs> where each RID is a (pageId, tupleId) pair.
  */
 public class BulkLoader {
@@ -37,12 +31,11 @@ public class BulkLoader {
   private DBCatalog dbCatalog;
 
   /**
-   * Constructs a BulkLoader to build a B+ tree index. Reads index configuration
-   * from the provided
+   * Constructs a BulkLoader to build a B+ tree index. Reads index configuration from the provided
    * file and initializes the bulk loading process.
    *
    * @param indexInfoFilePath Path to the index configuration file
-   * @param outputFileName    Path where the serialized B+ tree will be written
+   * @param outputFileName Path where the serialized B+ tree will be written
    * @throws IOException If there are errors reading the index info file
    */
   public BulkLoader(String indexInfoFilePath, String outputFileName) throws IOException {
@@ -64,8 +57,7 @@ public class BulkLoader {
   }
 
   /**
-   * Parses the index information file to extract configuration for each index.
-   * File format:
+   * Parses the index information file to extract configuration for each index. File format:
    * relation_name index_name clustered(0/1) order
    *
    * @param indexInfoFilePath Path to the index configuration file
@@ -110,12 +102,11 @@ public class BulkLoader {
   }
 
   /**
-   * Scans the relation file and builds data entries for the index. For clustered
-   * indexes, also
+   * Scans the relation file and builds data entries for the index. For clustered indexes, also
    * sorts the data entries by key.
    *
    * @param relationName Name of the relation to scan
-   * @param col          Name of the column to index
+   * @param col Name of the column to index
    */
   public void scanRelation(String relationName, String col) {
     // Get file path from DBCatalog
@@ -168,7 +159,7 @@ public class BulkLoader {
   /**
    * Gets the index of a column in a table's schema.
    *
-   * @param tableName  Name of the table
+   * @param tableName Name of the table
    * @param columnName Name of the column
    * @return Index of the column in the schema, or -1 if not found
    */
@@ -188,7 +179,8 @@ public class BulkLoader {
    * @param relationName Name of the relation to write
    */
   private void writeSortedRelation(String relationName) {
-    String sortedFileName = "src/test/resources/samples/input/db_p2/data/" + relationName + "_sorted";
+    String sortedFileName =
+        "src/test/resources/samples/input/db_p2/data/" + relationName + "_sorted";
     try (RandomAccessFile sortedFile = new RandomAccessFile(sortedFileName, "rw")) {
       for (DataEntry entry : dataEntries) {
         for (int[] rid : entry.rids) {
@@ -205,8 +197,7 @@ public class BulkLoader {
   }
 
   /**
-   * Builds the leaf nodes of the B+ tree according to the bulk loading algorithm.
-   * Each leaf node
+   * Builds the leaf nodes of the B+ tree according to the bulk loading algorithm. Each leaf node
    * gets 2d entries except possibly the last two nodes.
    *
    * @return List of constructed leaf nodes
@@ -241,8 +232,7 @@ public class BulkLoader {
   }
 
   /**
-   * Builds and serializes the complete B+ tree. This includes building leaf
-   * nodes, index nodes, and
+   * Builds and serializes the complete B+ tree. This includes building leaf nodes, index nodes, and
    * writing the header page.
    *
    * @throws IOException If there are errors writing to the output file
@@ -275,11 +265,10 @@ public class BulkLoader {
   }
 
   /**
-   * Writes the header page of the B+ tree file. Contains root address, number of
-   * leaves, and tree
+   * Writes the header page of the B+ tree file. Contains root address, number of leaves, and tree
    * order.
    *
-   * @param rootAddress    Address of the root node
+   * @param rootAddress Address of the root node
    * @param numberOfLeaves Total number of leaf nodes
    * @throws IOException If there are errors writing to the file
    */
@@ -299,11 +288,10 @@ public class BulkLoader {
   }
 
   /**
-   * Serializes a node to the output file. Handles both leaf and index nodes with
-   * appropriate
+   * Serializes a node to the output file. Handles both leaf and index nodes with appropriate
    * formatting.
    *
-   * @param node    The node to serialize
+   * @param node The node to serialize
    * @param address The address where the node should be written
    * @throws IOException If there are errors writing to the file
    */
@@ -341,8 +329,7 @@ public class BulkLoader {
   }
 
   /**
-   * Builds the index nodes layer of the B+ tree. Each index node gets 2d+1
-   * children and 2d keys
+   * Builds the index nodes layer of the B+ tree. Each index node gets 2d+1 children and 2d keys
    * except possibly the last two nodes.
    *
    * @param childNodes List of child nodes to build index nodes from
@@ -385,8 +372,7 @@ public class BulkLoader {
   }
 
   /**
-   * Represents a data entry in a leaf node of the B+ tree. Contains a key and its
-   * associated list
+   * Represents a data entry in a leaf node of the B+ tree. Contains a key and its associated list
    * of RIDs.
    */
   public class DataEntry implements Comparable<DataEntry> {
@@ -405,8 +391,7 @@ public class BulkLoader {
   }
 
   /**
-   * Represents a node in the B+ tree. Can be either a leaf node containing data
-   * entries or an index
+   * Represents a node in the B+ tree. Can be either a leaf node containing data entries or an index
    * node containing keys and child pointers.
    */
   public class TreeNode {

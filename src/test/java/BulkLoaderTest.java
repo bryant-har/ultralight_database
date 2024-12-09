@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Disabled;
 public class BulkLoaderTest {
 
   private static final String TEST_FILE = "src/test/resources/out/index_out.txt";
-  private static final String TEST_FILE_INFO = "src/test/resources/samples/input/db_p3/index_info.txt";
+  private static final String TEST_FILE_INFO =
+      "src/test/resources/samples/input/db_p3/index_info.txt";
   private static final int PAGE_SIZE = 4096;
   private BulkLoader bulkLoader;
   private RandomAccessFile raf;
@@ -62,8 +63,8 @@ public class BulkLoaderTest {
     assertEquals(1, treeOrder, "Tree order should be 1");
 
     // Verify leaf nodes
-    verifyLeafNode(1, new int[] { 1, 2 }, new int[][] { { 1, 1 }, { 1, 2 } });
-    verifyLeafNode(2, new int[] { 3, 4 }, new int[][] { { 1, 3 }, { 1, 4 } });
+    verifyLeafNode(1, new int[] {1, 2}, new int[][] {{1, 1}, {1, 2}});
+    verifyLeafNode(2, new int[] {3, 4}, new int[][] {{1, 3}, {1, 4}});
 
     // Verify root node (index node)
     raf.seek(rootAddress * PAGE_SIZE);

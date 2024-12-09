@@ -1,9 +1,7 @@
 package common;
 
 import java.io.File;
-import java.io.File;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.List;
 import java.util.Map;
 import join_algorithms.BNLJ;
@@ -16,12 +14,9 @@ import operator.logical.*;
 import operator.physical.*;
 
 /**
- * The PhysicalPlanBuilder class is responsible for constructing a physical
- * query execution plan
- * from a logical query plan. It translates logical operators into appropriate
- * physical operators,
- * considering optimization strategies like index usage, sort-merge joins, and
- * block nested-loop
+ * The PhysicalPlanBuilder class is responsible for constructing a physical query execution plan
+ * from a logical query plan. It translates logical operators into appropriate physical operators,
+ * considering optimization strategies like index usage, sort-merge joins, and block nested-loop
  * joins.
  */
 public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
@@ -38,9 +33,8 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
    * Constructor for the PhysicalPlanBuilder.
    *
    * @param tableAliases Map of table aliases to table names.
-   * @param tempDir      Directory path for temporary files.
+   * @param tempDir Directory path for temporary files.
    */
-
   public PhysicalPlanBuilder(Map<String, String> tableAliases, String tempDir) {
     this.tableAliases = tableAliases;
     this.tempDir = tempDir;
@@ -60,8 +54,7 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   }
 
   /**
-   * Processes a LogicalSelectOperator and converts it into a SelectOperator. If
-   * an index is
+   * Processes a LogicalSelectOperator and converts it into a SelectOperator. If an index is
    * available, an IndexScanOperator is used.
    *
    * @param op The LogicalSelectOperator.
@@ -80,13 +73,14 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
         boolean isClustered = isIndexClustered(tableName, indexColumn);
 
         // Create an IndexScanOperator
-        result = new IndexScanOperator(
-            new ArrayList<>(scanOp.getSchema()),
-            tableName,
-            tempDir + "/" + tableName + "." + indexColumn,
-            isClustered,
-            analyzer.getLowKey(),
-            analyzer.getHighKey());
+        result =
+            new IndexScanOperator(
+                new ArrayList<>(scanOp.getSchema()),
+                tableName,
+                tempDir + "/" + tableName + "." + indexColumn,
+                isClustered,
+                analyzer.getLowKey(),
+                analyzer.getHighKey());
 
         // Apply any remaining conditions not handled by the index
         List<Expression> remainingConditions = analyzer.getRemainingConditions();
@@ -104,8 +98,7 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   }
 
   /**
-   * Processes a LogicalJoinOperator and converts it into a tree of join
-   * operators.
+   * Processes a LogicalJoinOperator and converts it into a tree of join operators.
    *
    * @param op The LogicalJoinOperator.
    */
@@ -124,9 +117,11 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     UnionFind unionFind = op.getUnionFind();
 
     // Optimize the join order and build the join tree
-    JoinOrderOptimizer optimizer = new JoinOrderOptimizer(physicalChildren, residualConditions, unionFind, dbCatalog);
+    JoinOrderOptimizer optimizer =
+        new JoinOrderOptimizer(physicalChildren, residualConditions, unionFind, dbCatalog);
 
-    result = buildJoinTree(optimizer.getOptimalOrder(), optimizer.getJoinConditions(), physicalChildren);
+    result =
+        buildJoinTree(optimizer.getOptimalOrder(), optimizer.getJoinConditions(), physicalChildren);
   }
 
   /**
@@ -141,20 +136,20 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   }
 
   /**
-   * Processes a LogicalSortOperator and converts it into an ExternalSort
-   * operator.
+   * Processes a LogicalSortOperator and converts it into an ExternalSort operator.
    *
    * @param op The LogicalSortOperator.
    */
   @Override
   public void visit(LogicalSortOperator op) {
     op.getChildren().get(0).accept(this);
-    result = new ExternalSort(
-        new ArrayList<>(result.getOutputSchema()),
-        result,
-        op.getOrderByElements(),
-        SORT_BUFFER_PAGES,
-        tempDir);
+    result =
+        new ExternalSort(
+            new ArrayList<>(result.getOutputSchema()),
+            result,
+            op.getOrderByElements(),
+            SORT_BUFFER_PAGES,
+            tempDir);
   }
 
   /**
@@ -166,16 +161,16 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   @Override
   public void visit(LogicalDuplicateEliminationOperator op) {
     op.getChildren().get(0).accept(this);
-    result = new DuplicateElementEliminationOperator(new ArrayList<>(result.getOutputSchema()), result);
+    result =
+        new DuplicateElementEliminationOperator(new ArrayList<>(result.getOutputSchema()), result);
   }
 
   /**
-   * Builds a tree of join operators based on the specified join order and
-   * conditions.
+   * Builds a tree of join operators based on the specified join order and conditions.
    *
-   * @param joinOrder  List of indices representing the join order.
+   * @param joinOrder List of indices representing the join order.
    * @param conditions List of join conditions.
-   * @param children   List of physical child operators.
+   * @param children List of physical child operators.
    * @return The root of the join tree.
    */
   private Operator buildJoinTree(
@@ -196,21 +191,24 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
         List<OrderByElement> leftOrderBy = createOrderByElements(leftColumns);
         List<OrderByElement> rightOrderBy = createOrderByElements(rightColumns);
 
-        Operator sortedLeft = new ExternalSort(
-            new ArrayList<>(current.getOutputSchema()),
-            current,
-            leftOrderBy,
-            SORT_BUFFER_PAGES,
-            tempDir);
+        Operator sortedLeft =
+            new ExternalSort(
+                new ArrayList<>(current.getOutputSchema()),
+                current,
+                leftOrderBy,
+                SORT_BUFFER_PAGES,
+                tempDir);
 
-        Operator sortedRight = new ExternalSort(
-            new ArrayList<>(right.getOutputSchema()),
-            right,
-            rightOrderBy,
-            SORT_BUFFER_PAGES,
-            tempDir);
+        Operator sortedRight =
+            new ExternalSort(
+                new ArrayList<>(right.getOutputSchema()),
+                right,
+                rightOrderBy,
+                SORT_BUFFER_PAGES,
+                tempDir);
 
-        current = new SMJ(sortedLeft, sortedRight, condition, tableAliases, leftColumns, rightColumns);
+        current =
+            new SMJ(sortedLeft, sortedRight, condition, tableAliases, leftColumns, rightColumns);
       } else {
         // Use block nested-loop join for smaller datasets
         current = new BNLJ(current, right, condition, tableAliases, BNLJ_BUFFER_PAGES);
@@ -223,11 +221,11 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   /**
    * Extracts join columns for sort-merge join from the join condition.
    *
-   * @param condition    The join condition.
-   * @param leftColumns  List to store left-side join columns.
+   * @param condition The join condition.
+   * @param leftColumns List to store left-side join columns.
    * @param rightColumns List to store right-side join columns.
-   * @param leftChild    The left child operator.
-   * @param rightChild   The right child operator.
+   * @param leftChild The left child operator.
+   * @param rightChild The right child operator.
    */
   private void extractJoinColumns(
       Expression condition,
@@ -235,9 +233,10 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
       List<Column> rightColumns,
       Operator leftChild,
       Operator rightChild) {
-    JoinConditionAnalyzer analyzer = new JoinConditionAnalyzer(
-        leftChild.getOutputSchema().get(0).getTable().getName(),
-        rightChild.getOutputSchema().get(0).getTable().getName());
+    JoinConditionAnalyzer analyzer =
+        new JoinConditionAnalyzer(
+            leftChild.getOutputSchema().get(0).getTable().getName(),
+            rightChild.getOutputSchema().get(0).getTable().getName());
     condition.accept(analyzer);
     leftColumns.addAll(analyzer.getLeftSortColumns());
     rightColumns.addAll(analyzer.getRightSortColumns());
@@ -261,12 +260,11 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   }
 
   /**
-   * Determines whether to use sort-merge join based on the join condition and
-   * dataset sizes.
+   * Determines whether to use sort-merge join based on the join condition and dataset sizes.
    *
    * @param condition The join condition.
-   * @param left      The left operator.
-   * @param right     The right operator.
+   * @param left The left operator.
+   * @param right The right operator.
    * @return True if sort-merge join should be used, false otherwise.
    */
   private boolean shouldUseSortMerge(Expression condition, Operator left, Operator right) {
@@ -340,8 +338,8 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   /**
    * Scores the usage of an index based on its characteristics.
    *
-   * @param analyzer   The SelectionAnalyzer for the index.
-   * @param tableName  The table name.
+   * @param analyzer The SelectionAnalyzer for the index.
+   * @param tableName The table name.
    * @param columnName The column name.
    * @return The score for the index.
    */
@@ -352,10 +350,8 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
       score += 3; // Equality condition
     }
 
-    if (analyzer.getLowKey() != null)
-      score += 1; // Lower bound exists
-    if (analyzer.getHighKey() != null)
-      score += 1; // Upper bound exists
+    if (analyzer.getLowKey() != null) score += 1; // Lower bound exists
+    if (analyzer.getHighKey() != null) score += 1; // Upper bound exists
 
     if (isIndexClustered(tableName, columnName)) {
       score += 2; // Prefer clustered indexes
@@ -367,7 +363,7 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   /**
    * Checks if a table has an index on a specific column.
    *
-   * @param tableName  The table name.
+   * @param tableName The table name.
    * @param columnName The column name.
    * @return True if an index exists, false otherwise.
    */
@@ -379,7 +375,7 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
   /**
    * Determines if an index is clustered.
    *
-   * @param tableName  The table name.
+   * @param tableName The table name.
    * @param columnName The column name.
    * @return True if the index is clustered, false otherwise.
    */

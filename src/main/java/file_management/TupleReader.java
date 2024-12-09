@@ -14,10 +14,7 @@ public class TupleReader implements AutoCloseable {
   private int numTupleAttributes;
   private int currPage;
   private int currTupleOnPage;
-  private int currPage;
-  private int currTupleOnPage;
   private ArrayList<int[]> tuples;
-  private ArrayList<int[]> metaDataArrayList;
   private ArrayList<int[]> metaDataArrayList;
 
   public TupleReader(String filePath) throws IOException {
@@ -36,7 +33,6 @@ public class TupleReader implements AutoCloseable {
     this.currPage = 0;
     int currTupleOnPage = 0;
     this.currPage = 0;
-    int currTupleOnPage = 0;
     loadNextPage();
   }
 
@@ -72,10 +68,7 @@ public class TupleReader implements AutoCloseable {
         tuple[j] = buffer.getInt(baseIndex + j * 4);
       }
       tuples.add(tuple);
-      int[] metaDataForCurrTuple = { currPage, currTupleOnPage };
-      metaDataArrayList.add(metaDataForCurrTuple);
-      currTupleOnPage += 1;
-      int[] metaDataForCurrTuple = { currPage, currTupleOnPage };
+      int[] metaDataForCurrTuple = {currPage, currTupleOnPage};
       metaDataArrayList.add(metaDataForCurrTuple);
       currTupleOnPage += 1;
     }
