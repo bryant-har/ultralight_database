@@ -96,11 +96,18 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
       SelectionAnalyzer analyzer = findBestIndex(tableName, op.getCondition());
 
       if (analyzer != null && analyzer.hasIndexConditions()) {
-        // We found an index we can use
+        // Add debug logging here
+        System.out.println(
+            "Index conditions: lowKey="
+                + analyzer.getLowKey()
+                + ", highKey="
+                + analyzer.getHighKey());
+        System.out.println("Remaining conditions: " + analyzer.getRemainingConditions());
+
+        // Create an IndexScanOperator
         String indexColumn = analyzer.getIndexedColumn();
         boolean isClustered = isIndexClustered(tableName, indexColumn);
 
-        // Create an IndexScanOperator
         result =
             new IndexScanOperator(
                 new ArrayList<>(scanOp.getSchema()),
@@ -108,8 +115,8 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
                 tempDir + "/" + tableName + "." + indexColumn,
                 isClustered,
                 analyzer.getLowKey(),
-                analyzer.getHighKey());
-
+                analyzer.getHighKey(),
+                indexColumn); // Add this parameter
         // If there are remaining conditions, add a SelectOperator on top
         List<Expression> remainingConditions = analyzer.getRemainingConditions();
         if (!remainingConditions.isEmpty()) {

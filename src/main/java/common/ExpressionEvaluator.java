@@ -8,261 +8,196 @@ import net.sf.jsqlparser.expression.operators.relational.*;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 
-/**
- * ExpressionEvaluator handles the evaluation of SQL expressions within the query processing system.
- * It extends ExpressionVisitorAdapter to visit and evaluate different types of SQL expressions. The
- * evaluator supports basic comparison operations, logical AND operations, and handles column
- * references with proper table alias resolution.
- *
- * <p>This class is primarily used for evaluating WHERE clause conditions and JOIN conditions in the
- * context of query execution.
- */
 public class ExpressionEvaluator extends ExpressionVisitorAdapter {
-  /** Current tuple being evaluated */
   private Tuple tuple;
-
-  /** Result of the current expression evaluation */
   private boolean result;
-
-  /** Temporary storage for intermediate numeric values */
   private int tempValue;
-
-  /** Schema of the relation being processed */
   private List<Column> schema;
-
-  /** Mapping of table aliases to actual table names */
   private Map<String, String> tableAliases;
 
-  /**
-   * Prunes a WHERE condition based on available tables. Removes conditions that reference tables
-   * not available in the current context. This is particularly useful for implementing join
-   * operations where conditions need to be split between different operators.
-   *
-   * @param whereCondition The WHERE condition expression to prune
-   * @param availableTableNames List of table names that are available in the current context
-   * @return The pruned expression, or null if the entire expression should be removed
-   */
-  static Expression pruneWhereCondition(
-      Expression whereCondition, List<String> availableTableNames) {
-    if (whereCondition instanceof AndExpression) {
-      AndExpression andExpression = (AndExpression) whereCondition;
-      Expression prunedRight =
-          pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
-      Expression prunedLeft =
-          pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
-      if (prunedRight == null || prunedLeft == null) {
-        return (prunedRight == null) ? prunedLeft : prunedRight;
-      }
-      return new AndExpression(prunedLeft, prunedRight);
-    } else if (whereCondition instanceof ComparisonOperator) {
-      ComparisonOperator comparisonOperator = (ComparisonOperator) whereCondition;
-      Expression prunedLeft =
-          pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
-      Expression prunedRight =
-          pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
-      // left and right expressions should represent columns or constants
-      if (prunedLeft == null || prunedRight == null) {
-        return null;
-      }
-    } else if (whereCondition instanceof Column) {
-      Column column = (Column) whereCondition;
-      Table table = column.getTable();
-      if (!availableTableNames.contains(
-          table.getAlias() != null ? table.getAlias().getName() : table.getName())) {
-        return null;
-      }
-    }
-    return whereCondition; // return unchanged expression
-  }
-
-  /**
-   * Constructs an ExpressionEvaluator with the given table alias mappings.
-   *
-   * @param tableAliases Map of table aliases to their actual table names
-   */
   public ExpressionEvaluator(Map<String, String> tableAliases) {
     this.tableAliases = tableAliases;
+    System.out.println("Created ExpressionEvaluator with aliases: " + tableAliases);
   }
 
-  /**
-   * Evaluates an expression against a given tuple and schema. This is the main entry point for
-   * expression evaluation.
-   *
-   * @param expr The expression to evaluate
-   * @param tuple The tuple to evaluate against
-   * @param schema The schema defining the structure of the tuple
-   * @return The boolean result of the expression evaluation
-   */
   public boolean evaluate(Expression expr, Tuple tuple, List<Column> schema) {
     this.tuple = tuple;
     this.schema = schema;
-    expr.accept(this); // Visit the expression and evaluate it
+    System.out.println("Evaluating expression: " + expr + " on tuple: " + tuple);
+    System.out.println("Using schema: " + schema.stream()
+        .map(col -> col.getTable().getName() + "." + col.getColumnName())
+        .reduce("", (a, b) -> a + ", " + b));
+
+    expr.accept(this);
+    System.out.println("Expression evaluation result: " + result);
     return result;
   }
 
-  /**
-   * Visits and evaluates an AND expression by evaluating both operands.
-   *
-   * @param andExpression The AND expression to evaluate
-   */
   @Override
   public void visit(AndExpression andExpression) {
+    System.out.println("Evaluating AND expression: " + andExpression);
     andExpression.getLeftExpression().accept(this);
-    boolean leftResult = result; // Store the result of the left expression
-    andExpression.getRightExpression().accept(this); // Evaluate the right expression
-    result = leftResult && result; // Combine results using AND logic
+    boolean leftResult = result;
+    andExpression.getRightExpression().accept(this);
+    result = leftResult && result;
+    System.out.println("AND result: " + leftResult + " && " + result + " = " + (leftResult && result));
   }
 
-  /**
-   * Visits and evaluates a column reference by looking up its value in the current tuple.
-   *
-   * @param column The column reference to evaluate
-   * @throws IllegalArgumentException if the column is not found in the schema
-   */
   @Override
   public void visit(Column column) {
     String columnName = column.getColumnName();
     String tableAlias = null;
 
-    // Determine if the column is qualified with an alias
     if (column.getTable() != null) {
-      tableAlias =
-          column.getTable().getAlias() != null
-              ? column.getTable().getAlias().getName()
-              : column.getTable().getName(); // Use actual table name if alias is absent
+      Table table = column.getTable();
+      tableAlias = table.getAlias() != null ? table.getAlias().getName() : table.getName();
+      System.out.println("Looking up column: " + columnName + " with alias/table: " + tableAlias);
+    } else {
+      System.out.println("Looking up unqualified column: " + columnName);
     }
 
-    // Get the index of the column in the tuple schema
     int index = getColumnIndex(tableAlias, columnName);
     if (index != -1) {
-      tempValue = tuple.getElementAtIndex(index); // Fetch the value from the tuple
+      tempValue = tuple.getElementAtIndex(index);
+      System.out.println("Found column " + columnName + " at index " + index + " with value " + tempValue);
     } else {
-      throw new IllegalArgumentException("Column not found: " + column.toString());
+      throw new IllegalArgumentException("Column not found: " + column + " in schema: " + schema);
     }
   }
 
-  /**
-   * Visits and evaluates a long literal value.
-   *
-   * @param longValue The long value to evaluate
-   */
+  private int getColumnIndex(String tableAlias, String columnName) {
+    System.out.println("Searching for column " + columnName + " with alias " + tableAlias);
+    System.out.println("Current schema size: " + schema.size());
+
+    for (int i = 0; i < schema.size(); i++) {
+      Column schemaColumn = schema.get(i);
+      String schemaColumnName = schemaColumn.getColumnName();
+      Table schemaTable = schemaColumn.getTable();
+      String schemaTableName = schemaTable.getName();
+      String schemaTableAlias = schemaTable.getAlias() != null ? schemaTable.getAlias().getName() : schemaTableName;
+
+      System.out.println("Checking schema column: " + schemaTableName + "." + schemaColumnName +
+          " (alias: " + schemaTableAlias + ")");
+
+      if (schemaColumnName.equals(columnName)) {
+        if (tableAlias == null || tableAlias.equals(schemaTableAlias)) {
+          System.out.println("Found match at index " + i);
+          return i;
+        }
+      }
+    }
+
+    System.out.println("No matching column found");
+    return -1;
+  }
+
   @Override
   public void visit(LongValue longValue) {
-    tempValue = (int) longValue.getValue(); // Handle long value
+    tempValue = (int) longValue.getValue();
+    System.out.println("Processing long value: " + tempValue);
   }
 
-  /**
-   * Visits and evaluates a double literal value.
-   *
-   * @param doubleValue The double value to evaluate
-   */
   @Override
   public void visit(DoubleValue doubleValue) {
-    tempValue = (int) doubleValue.getValue(); // Handle double value (truncated to int)
+    tempValue = (int) doubleValue.getValue();
+    System.out.println("Processing double value: " + tempValue);
   }
 
-  /**
-   * Visits and evaluates an equals comparison.
-   *
-   * @param equalsTo The equals comparison to evaluate
-   */
   @Override
   public void visit(EqualsTo equalsTo) {
+    System.out.println("Evaluating equals expression");
     equalsTo.getLeftExpression().accept(this);
     int left = tempValue;
     equalsTo.getRightExpression().accept(this);
     result = left == tempValue;
+    System.out.println("Equals comparison: " + left + " == " + tempValue + " = " + result);
   }
 
-  /**
-   * Visits and evaluates a not-equals comparison.
-   *
-   * @param notEqualsTo The not-equals comparison to evaluate
-   */
   @Override
   public void visit(NotEqualsTo notEqualsTo) {
+    System.out.println("Evaluating not equals expression");
     notEqualsTo.getLeftExpression().accept(this);
     int left = tempValue;
     notEqualsTo.getRightExpression().accept(this);
     result = left != tempValue;
+    System.out.println("Not equals comparison: " + left + " != " + tempValue + " = " + result);
   }
 
-  /**
-   * Visits and evaluates a greater-than comparison.
-   *
-   * @param greaterThan The greater-than comparison to evaluate
-   */
   @Override
   public void visit(GreaterThan greaterThan) {
+    System.out.println("Evaluating greater than expression");
     greaterThan.getLeftExpression().accept(this);
     int left = tempValue;
     greaterThan.getRightExpression().accept(this);
     result = left > tempValue;
+    System.out.println("Greater than comparison: " + left + " > " + tempValue + " = " + result);
   }
 
-  /**
-   * Visits and evaluates a greater-than-or-equals comparison.
-   *
-   * @param greaterThanEquals The greater-than-or-equals comparison to evaluate
-   */
   @Override
   public void visit(GreaterThanEquals greaterThanEquals) {
+    System.out.println("Evaluating greater than equals expression");
     greaterThanEquals.getLeftExpression().accept(this);
     int left = tempValue;
     greaterThanEquals.getRightExpression().accept(this);
     result = left >= tempValue;
+    System.out.println("Greater than equals comparison: " + left + " >= " + tempValue + " = " + result);
   }
 
-  /**
-   * Visits and evaluates a less-than comparison.
-   *
-   * @param minorThan The less-than comparison to evaluate
-   */
   @Override
   public void visit(MinorThan minorThan) {
+    System.out.println("Evaluating less than expression");
     minorThan.getLeftExpression().accept(this);
     int left = tempValue;
     minorThan.getRightExpression().accept(this);
     result = left < tempValue;
+    System.out.println("Less than comparison: " + left + " < " + tempValue + " = " + result);
   }
 
-  /**
-   * Visits and evaluates a less-than-or-equals comparison.
-   *
-   * @param minorThanEquals The less-than-or-equals comparison to evaluate
-   */
   @Override
   public void visit(MinorThanEquals minorThanEquals) {
+    System.out.println("Evaluating less than equals expression");
     minorThanEquals.getLeftExpression().accept(this);
     int left = tempValue;
     minorThanEquals.getRightExpression().accept(this);
     result = left <= tempValue;
+    System.out.println("Less than equals comparison: " + left + " <= " + tempValue + " = " + result);
   }
 
-  /**
-   * Finds the index of a column in the schema based on the alias and column name. This method
-   * handles table aliases properly to support self-joins.
-   *
-   * @param tableAlias The alias of the table or null if none
-   * @param columnName The name of the column
-   * @return The index of the column in the schema, or -1 if not found
-   */
-  private int getColumnIndex(String tableAlias, String columnName) {
-    for (int i = 0; i < schema.size(); i++) {
-      Column schemaColumn = schema.get(i);
-      String schemaColumnName = schemaColumn.getColumnName();
-      String schemaTableAlias =
-          schemaColumn.getTable().getAlias() != null
-              ? schemaColumn.getTable().getAlias().getName()
-              : schemaColumn.getTable().getName();
+  static Expression pruneWhereCondition(Expression whereCondition, List<String> availableTableNames) {
+    System.out.println("Pruning condition: " + whereCondition +
+        " with available tables: " + availableTableNames);
 
-      // Prioritize alias match over table name match
-      if (schemaColumnName.equals(columnName)
-          && (tableAlias != null && tableAlias.equals(schemaTableAlias))) {
-        return i;
+    if (whereCondition instanceof AndExpression) {
+      AndExpression andExpression = (AndExpression) whereCondition;
+      Expression prunedRight = pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
+      Expression prunedLeft = pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
+      if (prunedRight == null || prunedLeft == null) {
+        Expression result = (prunedRight == null) ? prunedLeft : prunedRight;
+        System.out.println("Pruned AND expression to: " + result);
+        return result;
+      }
+      return new AndExpression(prunedLeft, prunedRight);
+    } else if (whereCondition instanceof ComparisonOperator) {
+      ComparisonOperator comparisonOperator = (ComparisonOperator) whereCondition;
+      Expression prunedLeft = pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
+      Expression prunedRight = pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
+      if (prunedLeft == null || prunedRight == null) {
+        System.out.println("Pruned comparison to null - one side references unavailable table");
+        return null;
+      }
+    } else if (whereCondition instanceof Column) {
+      Column column = (Column) whereCondition;
+      Table table = column.getTable();
+      String tableName = table.getAlias() != null ? table.getAlias().getName() : table.getName();
+      boolean available = availableTableNames.contains(tableName);
+      System.out.println("Checking column " + column + " with table " + tableName +
+          " - available: " + available);
+      if (!available) {
+        return null;
       }
     }
 
-    return -1; // Return -1 if the column was not found
+    System.out.println("Keeping condition unchanged: " + whereCondition);
+    return whereCondition;
   }
 }

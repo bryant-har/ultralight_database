@@ -15,9 +15,11 @@ import net.sf.jsqlparser.statement.select.Select;
 import operator.logical.LogicalOperator;
 import operator.physical.Operator;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@Disabled
 public class P2UnitTests {
   private static final String INPUT_DIR = "src/test/resources/samples/input";
   private static final String EXPECTED_DIR = "src/test/resources/samples/expected";

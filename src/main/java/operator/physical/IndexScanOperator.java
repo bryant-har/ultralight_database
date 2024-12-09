@@ -28,30 +28,36 @@ public class IndexScanOperator extends Operator {
   private List<int[]> allTuples; // For clustered index
   private int currentTupleIndex; // For clustered index
   private boolean initialized;
+  private final String indexedColumn; // Add this as a class field
 
   /**
-   * Constructs an IndexScanOperator for scanning a relation using a B+ tree index.
+   * Constructs an IndexScanOperator for scanning a relation using a B+ tree
+   * index.
    *
    * @param outputSchema The schema of the output tuples
    * @param relationName The name of the relation to scan
-   * @param indexFile Path to the index file
-   * @param isClustered Whether the index is clustered
-   * @param lowKey Lower bound of the range to scan (null for unbounded)
-   * @param highKey Upper bound of the range to scan (null for unbounded)
+   * @param indexFile    Path to the index file
+   * @param isClustered  Whether the index is clustered
+   * @param lowKey       Lower bound of the range to scan (null for unbounded)
+   * @param highKey      Upper bound of the range to scan (null for unbounded)
    */
+
+  // Then modify the constructor to take and store the column name
   public IndexScanOperator(
       ArrayList<Column> outputSchema,
       String relationName,
       String indexFile,
       boolean isClustered,
       Integer lowKey,
-      Integer highKey) {
+      Integer highKey,
+      String indexedColumn) { // Add this parameter
     super(outputSchema);
     this.relationName = relationName;
     this.indexFile = indexFile;
     this.isClustered = isClustered;
     this.lowKey = lowKey;
     this.highKey = highKey;
+    this.indexedColumn = indexedColumn; // Store it
     this.buffer = ByteBuffer.allocate(PAGE_SIZE);
     this.initialized = false;
     this.currentRids = new ArrayList<>();
@@ -60,10 +66,12 @@ public class IndexScanOperator extends Operator {
   }
 
   /**
-   * Initializes the operator by opening necessary files and performing initial B+ tree traversal.
+   * Initializes the operator by opening necessary files and performing initial B+
+   * tree traversal.
    */
   private void initialize() throws IOException {
-    if (initialized) return;
+    if (initialized)
+      return;
 
     // Open index and data files
     indexRAF = new RandomAccessFile(indexFile, "r");
@@ -71,71 +79,180 @@ public class IndexScanOperator extends Operator {
     dataFileRAF = new RandomAccessFile(dataFilePath, "r");
 
     // Read root address from header page
-    readPage(0);
+    buffer.clear();
+    indexRAF.seek(0);
+    indexRAF.read(buffer.array());
     rootAddress = buffer.getInt(0);
 
-    // Traverse to first leaf node that could contain keys in our range
+    // Find and read first valid leaf node
     currentLeafPage = findStartLeaf(rootAddress);
+    System.out.println("Found starting leaf page: " + currentLeafPage);
+    buffer.clear();
+    indexRAF.seek((long) currentLeafPage * PAGE_SIZE);
+    indexRAF.read(buffer.array());
+
     currentEntryIndex = 0;
 
-    if (isClustered) {
-      // For clustered index, read all tuples at once since they're sequential
-      readPage(currentLeafPage);
-      if (!readNextEntry()) {
-        return;
-      }
-      if (currentRids.isEmpty()) {
-        return;
-      }
-
-      // Read all tuples using TupleReader
-      try (TupleReader reader = new TupleReader(dataFilePath)) {
-        allTuples = reader.readTuples();
-        currentTupleIndex = currentRids.get(0)[1]; // Start from the first matching tuple
+    // Skip entries until we find one >= lowKey
+    boolean foundValidEntry = false;
+    while (!foundValidEntry && currentEntryIndex < buffer.getInt(4)) {
+      int entryOffset = calculateEntryOffset(currentEntryIndex);
+      int key = buffer.getInt(entryOffset);
+      System.out.println("Checking entry with key: " + key);
+      if (lowKey == null || key >= lowKey) {
+        foundValidEntry = true;
+        readEntryAtOffset(entryOffset);
+      } else {
+        currentEntryIndex++;
       }
     }
 
     initialized = true;
   }
 
-  /** Finds the leaf node where scanning should start based on the low key. */
+  private int calculateEntryOffset(int entryIndex) {
+    int offset = 8; // Skip node type and entry count
+    for (int i = 0; i < entryIndex; i++) {
+      int numRids = buffer.getInt(offset + 4);
+      offset += 8 + (numRids * 8); // Skip key, RID count, and RIDs
+    }
+    return offset;
+  }
+
+  private void readEntryAtOffset(int offset) {
+    int key = buffer.getInt(offset);
+    int numRids = buffer.getInt(offset + 4);
+    offset += 8;
+
+    currentRids.clear();
+    for (int i = 0; i < numRids; i++) {
+      int pageId = buffer.getInt(offset + i * 8);
+      int tupleId = buffer.getInt(offset + i * 8 + 4);
+      currentRids.add(new int[] { pageId, tupleId });
+      System.out.println("Reading entry key=" + key + ", RID=(" + pageId + "," + tupleId + ")");
+    }
+    currentRidIndex = 0;
+  }
+
   private int findStartLeaf(int nodeAddress) throws IOException {
-    readPage(nodeAddress);
+    buffer.clear();
+    indexRAF.seek((long) nodeAddress * PAGE_SIZE);
+    indexRAF.read(buffer.array());
+
     int nodeType = buffer.getInt(0);
+    System.out.println("Examining node at " + nodeAddress + ", type=" + nodeType);
 
     if (nodeType == 0) { // Leaf node
       return nodeAddress;
     }
 
-    // Index node - find appropriate child
+    // Index node - find child containing lowKey
     int numKeys = buffer.getInt(4);
-    int keyOffset = 8;
-    int childOffset = 8 + (numKeys * 4);
+    System.out.println("Index node has " + numKeys + " keys");
 
-    // If no low key, go to leftmost leaf
+    int childPointerOffset = 8 + (numKeys * 4); // Skip keys
+    int childPtr = buffer.getInt(childPointerOffset); // First child pointer
+
+    // If no lowKey, use leftmost path
     if (lowKey == null) {
-      return findStartLeaf(buffer.getInt(childOffset));
+      return findStartLeaf(childPtr);
     }
 
-    // Find first key greater than low key
+    // Find appropriate child pointer based on lowKey
     for (int i = 0; i < numKeys; i++) {
-      if (buffer.getInt(keyOffset + i * 4) > lowKey) {
-        return findStartLeaf(buffer.getInt(childOffset + i * 4));
+      int key = buffer.getInt(8 + i * 4);
+      System.out.println("Checking key " + key + " against lowKey " + lowKey);
+      if (key > lowKey) {
+        return findStartLeaf(childPtr);
       }
+      childPtr = buffer.getInt(childPointerOffset + (i + 1) * 4);
     }
 
-    // All keys less than low key, use rightmost child
-    return findStartLeaf(buffer.getInt(childOffset + numKeys * 4));
+    // Use rightmost child if lowKey is greater than all keys
+    return findStartLeaf(childPtr);
   }
 
-  /** Reads the next data entry from current leaf node into currentRids. */
+  @Override
+  public Tuple getNextTuple() {
+    try {
+      if (!initialized) {
+        initialize();
+        System.out.println("Index scan initialized");
+        System.out.println("Current leaf page: " + currentLeafPage);
+      }
+
+      while (true) {
+        if (currentRidIndex < currentRids.size()) {
+          int[] rid = currentRids.get(currentRidIndex++);
+          System.out.println("Reading tuple with RID: pageId=" + rid[0] + ", tupleId=" + rid[1]);
+
+          if (isClustered) {
+            if (currentTupleIndex < allTuples.size()) {
+              Tuple tuple = new Tuple(allTuples.get(currentTupleIndex++));
+              int key = tuple.getElementAtIndex(getKeyColumnIndex());
+              if (key > highKey)
+                return null;
+              return tuple;
+            }
+            return null;
+          } else {
+            Tuple tuple = readTupleFromRID(rid);
+            int key = tuple.getElementAtIndex(getKeyColumnIndex());
+            if (key > highKey) {
+              return null;
+            }
+            return tuple;
+          }
+        }
+
+        if (!readNextEntry()) {
+          return null;
+        }
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+
+  private Tuple readTupleFromRID(int[] rid) throws IOException {
+    // Clear any existing buffer state
+    buffer.clear();
+
+    // Calculate exact offset for the tuple
+    long pageOffset = (long) rid[0] * PAGE_SIZE;
+    dataFileRAF.seek(pageOffset);
+
+    // Read page header
+    int numAttrs = dataFileRAF.readInt();
+    int numTuples = dataFileRAF.readInt();
+
+    // Calculate precise tuple offset
+    int tupleSize = numAttrs * 4; // Each attribute is 4 bytes
+    long tupleOffset = pageOffset + 8 + ((long) rid[1] * tupleSize);
+
+    // Seek directly to tuple position
+    dataFileRAF.seek(tupleOffset);
+
+    // Read tuple data
+    int[] tupleData = new int[numAttrs];
+    for (int i = 0; i < numAttrs; i++) {
+      tupleData[i] = dataFileRAF.readInt();
+    }
+
+    return new Tuple(tupleData);
+  }
+
   private boolean readNextEntry() throws IOException {
     if (buffer.getInt(0) != 0) { // Not a leaf node
+      System.out.println("Not a leaf node - type: " + buffer.getInt(0));
       return false;
     }
 
     int numEntries = buffer.getInt(4);
+    System.out.println("Number of entries in leaf: " + numEntries);
     if (currentEntryIndex >= numEntries) {
+      System.out.println("No more entries in current leaf");
       return false;
     }
 
@@ -147,8 +264,11 @@ public class IndexScanOperator extends Operator {
     }
 
     int key = buffer.getInt(offset);
+    System.out.println("Reading entry with key: " + key);
+
     // Check if we've passed high key
     if (highKey != null && key > highKey) {
+      System.out.println("Key " + key + " exceeds highKey " + highKey);
       return false;
     }
 
@@ -159,7 +279,8 @@ public class IndexScanOperator extends Operator {
     for (int i = 0; i < numRids; i++) {
       int pageId = buffer.getInt(offset + i * 8);
       int tupleId = buffer.getInt(offset + i * 8 + 4);
-      currentRids.add(new int[] {pageId, tupleId});
+      currentRids.add(new int[] { pageId, tupleId });
+      System.out.println("Added RID: pageId=" + pageId + ", tupleId=" + tupleId);
     }
 
     currentEntryIndex++;
@@ -195,50 +316,16 @@ public class IndexScanOperator extends Operator {
     }
   }
 
-  @Override
-  public Tuple getNextTuple() {
-    try {
-      if (!initialized) {
-        initialize();
+  private int getKeyColumnIndex() {
+    // Since the index is built on a specific column, we need to find its position
+    // in the schema
+    for (int i = 0; i < outputSchema.size(); i++) {
+      Column col = outputSchema.get(i);
+      if (col.getColumnName().equals(indexedColumn)) {
+        return i;
       }
-
-      while (true) {
-        // If we have more RIDs in current entry
-        if (currentRidIndex < currentRids.size()) {
-          int[] rid = currentRids.get(currentRidIndex++);
-
-          if (isClustered) {
-            // For clustered index, read sequentially from buffered tuples
-            if (currentTupleIndex < allTuples.size()) {
-              return new Tuple(allTuples.get(currentTupleIndex++));
-            }
-            return null;
-          } else {
-            // For unclustered index, seek to specific tuple
-            dataFileRAF.seek(rid[0] * PAGE_SIZE + rid[1] * 4);
-            // Read tuple at that position
-            byte[] tupleData = new byte[outputSchema.size() * 4];
-            dataFileRAF.read(tupleData);
-            ByteBuffer tupleBuffer = ByteBuffer.wrap(tupleData);
-
-            ArrayList<Integer> values = new ArrayList<>();
-            for (int i = 0; i < outputSchema.size(); i++) {
-              values.add(tupleBuffer.getInt(i * 4));
-            }
-            return new Tuple(values);
-          }
-        }
-
-        // Need to move to next entry
-        if (!readNextEntry()) {
-          // No more entries in current leaf
-          return null;
-        }
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-      return null;
     }
+    throw new IllegalStateException("Could not find indexed column in schema");
   }
 
   @Override
