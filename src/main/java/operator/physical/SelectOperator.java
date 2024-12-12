@@ -12,7 +12,8 @@ public class SelectOperator extends Operator {
   private Expression whereExpression;
   private ExpressionEvaluator evaluator;
 
-  public SelectOperator(Operator child, Expression whereExpression, Map<String, String> tableAliases) {
+  public SelectOperator(
+      Operator child, Expression whereExpression, Map<String, String> tableAliases) {
     super(new ArrayList<>(child.getOutputSchema()));
     this.child = child;
     this.whereExpression = whereExpression;
@@ -33,8 +34,6 @@ public class SelectOperator extends Operator {
         return null;
       }
       boolean passes = evaluator.evaluate(whereExpression, nextTuple, getOutputSchema());
-      System.out.println("Evaluating tuple: " + nextTuple + " against condition: " +
-          whereExpression + " Result: " + passes);
       if (passes) {
         return nextTuple;
       }

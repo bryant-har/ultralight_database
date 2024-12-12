@@ -83,8 +83,6 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
 
   private void processComparisonOperation(
       ComparisonOperator expr, boolean isLower, boolean inclusive) {
-    System.out.println("Processing comparison: " + expr);
-    System.out.println("Current bounds - low: " + lowKey + ", high: " + highKey);
 
     Expression left = expr.getLeftExpression();
     Expression right = expr.getRightExpression();

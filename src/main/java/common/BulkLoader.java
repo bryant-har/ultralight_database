@@ -33,8 +33,12 @@ public class BulkLoader {
         String[] parts = line.split("\\s+");
         if (parts.length >= 4) {
           // Check if this line corresponds to our target index
-          String expectedOutputFile = indexInfoFilePath.substring(0, indexInfoFilePath.lastIndexOf("/")) +
-              "/indexes/" + parts[0] + "." + parts[1];
+          String expectedOutputFile =
+              indexInfoFilePath.substring(0, indexInfoFilePath.lastIndexOf("/"))
+                  + "/indexes/"
+                  + parts[0]
+                  + "."
+                  + parts[1];
           if (expectedOutputFile.equals(outputFileName)) {
             this.relationName = parts[0];
             this.indexColumn = parts[1];
@@ -53,7 +57,8 @@ public class BulkLoader {
     // Find the column index for the indexed column
     this.keyColumnIndex = getColumnIndex(relationName, indexColumn);
     if (keyColumnIndex == -1) {
-      throw new IOException("Could not find column " + indexColumn + " in relation " + relationName);
+      throw new IOException(
+          "Could not find column " + indexColumn + " in relation " + relationName);
     }
 
     this.raf = new RandomAccessFile(outputFileName, "rw");
@@ -111,9 +116,13 @@ public class BulkLoader {
     writeHeaderPage(rootAddress, numberOfLeaves);
 
     // Verify the root address
-    System.out.println("Built tree with root address: " + rootAddress +
-        ", number of leaves: " + numberOfLeaves +
-        ", order: " + d);
+    System.out.println(
+        "Built tree with root address: "
+            + rootAddress
+            + ", number of leaves: "
+            + numberOfLeaves
+            + ", order: "
+            + d);
   }
 
   private void validateAndAddEntry(int key, int pageId, int tupleId) {
@@ -129,7 +138,8 @@ public class BulkLoader {
 
         // Validate tuple ID
         if (tupleId >= numTuples) {
-          System.err.println("Invalid RID: tuple " + tupleId + " exceeds page tuple count " + numTuples);
+          System.err.println(
+              "Invalid RID: tuple " + tupleId + " exceeds page tuple count " + numTuples);
           return;
         }
 
@@ -140,14 +150,11 @@ public class BulkLoader {
 
         // Verify the key matches
         if (actualValue == key) {
-          int[] rid = new int[] { pageId, tupleId };
+          int[] rid = new int[] {pageId, tupleId};
           if (!containsRID(currentEntry.rids, rid)) {
             currentEntry.rids.add(rid);
             System.out.println("Added valid RID (" + pageId + "," + tupleId + ") for key " + key);
           }
-        } else {
-          System.err.println("Key mismatch for RID (" + pageId + "," + tupleId +
-              "): expected " + key + " but found " + actualValue);
         }
       }
     } catch (IOException e) {
@@ -206,11 +213,13 @@ public class BulkLoader {
   }
 
   private void writeSortedRelation() throws IOException {
-    String sortedFileName = DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath() + "_sorted";
+    String sortedFileName =
+        DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath() + "_sorted";
     System.out.println("Writing sorted relation to: " + sortedFileName);
 
-    try (RandomAccessFile dataFile = new RandomAccessFile(
-        DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath(), "r");
+    try (RandomAccessFile dataFile =
+            new RandomAccessFile(
+                DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath(), "r");
         RandomAccessFile sortedFile = new RandomAccessFile(sortedFileName, "rw")) {
 
       // Get schema info
@@ -236,7 +245,8 @@ public class BulkLoader {
         }
       }
 
-      System.out.println("Successfully wrote sorted relation with " + dataEntries.size() + " entries");
+      System.out.println(
+          "Successfully wrote sorted relation with " + dataEntries.size() + " entries");
     }
   }
 
@@ -315,7 +325,8 @@ public class BulkLoader {
     for (int i = 3; i < PAGE_SIZE / 4; i++) {
       raf.writeInt(0);
     }
-    System.out.println("Wrote header page: root=" + rootAddress + ", leaves=" + numberOfLeaves + ", order=" + d);
+    System.out.println(
+        "Wrote header page: root=" + rootAddress + ", leaves=" + numberOfLeaves + ", order=" + d);
   }
 
   private void serializeNode(TreeNode node, int address) throws IOException {

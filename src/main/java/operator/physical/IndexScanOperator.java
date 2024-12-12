@@ -2,7 +2,6 @@ package operator.physical;
 
 import common.DBCatalog;
 import common.Tuple;
-import file_management.TupleReader;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -31,15 +30,14 @@ public class IndexScanOperator extends Operator {
   private final String indexedColumn; // Add this as a class field
 
   /**
-   * Constructs an IndexScanOperator for scanning a relation using a B+ tree
-   * index.
+   * Constructs an IndexScanOperator for scanning a relation using a B+ tree index.
    *
    * @param outputSchema The schema of the output tuples
    * @param relationName The name of the relation to scan
-   * @param indexFile    Path to the index file
-   * @param isClustered  Whether the index is clustered
-   * @param lowKey       Lower bound of the range to scan (null for unbounded)
-   * @param highKey      Upper bound of the range to scan (null for unbounded)
+   * @param indexFile Path to the index file
+   * @param isClustered Whether the index is clustered
+   * @param lowKey Lower bound of the range to scan (null for unbounded)
+   * @param highKey Upper bound of the range to scan (null for unbounded)
    */
 
   // Then modify the constructor to take and store the column name
@@ -66,12 +64,10 @@ public class IndexScanOperator extends Operator {
   }
 
   /**
-   * Initializes the operator by opening necessary files and performing initial B+
-   * tree traversal.
+   * Initializes the operator by opening necessary files and performing initial B+ tree traversal.
    */
   private void initialize() throws IOException {
-    if (initialized)
-      return;
+    if (initialized) return;
 
     // Open index and data files
     indexRAF = new RandomAccessFile(indexFile, "r");
@@ -128,7 +124,7 @@ public class IndexScanOperator extends Operator {
     for (int i = 0; i < numRids; i++) {
       int pageId = buffer.getInt(offset + i * 8);
       int tupleId = buffer.getInt(offset + i * 8 + 4);
-      currentRids.add(new int[] { pageId, tupleId });
+      currentRids.add(new int[] {pageId, tupleId});
       System.out.println("Reading entry key=" + key + ", RID=(" + pageId + "," + tupleId + ")");
     }
     currentRidIndex = 0;
@@ -190,8 +186,7 @@ public class IndexScanOperator extends Operator {
             if (currentTupleIndex < allTuples.size()) {
               Tuple tuple = new Tuple(allTuples.get(currentTupleIndex++));
               int key = tuple.getElementAtIndex(getKeyColumnIndex());
-              if (key > highKey)
-                return null;
+              if (key > highKey) return null;
               return tuple;
             }
             return null;
@@ -279,7 +274,7 @@ public class IndexScanOperator extends Operator {
     for (int i = 0; i < numRids; i++) {
       int pageId = buffer.getInt(offset + i * 8);
       int tupleId = buffer.getInt(offset + i * 8 + 4);
-      currentRids.add(new int[] { pageId, tupleId });
+      currentRids.add(new int[] {pageId, tupleId});
       System.out.println("Added RID: pageId=" + pageId + ", tupleId=" + tupleId);
     }
 

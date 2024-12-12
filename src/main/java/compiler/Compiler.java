@@ -65,6 +65,7 @@ public class Compiler {
     try {
       // If indexes need to be built, do that first
       if (buildIndexes) {
+        System.out.println("build indexes");
         buildIndexes();
       }
 
@@ -175,6 +176,13 @@ public class Compiler {
    *
    * @throws IOException If there is an error reading or writing files
    */
+  /**
+   * Builds indexes based on the index_info.txt configuration. This method retains the manual
+   * sorting for clustered indexes from the original code, but uses the BulkLoader approach from the
+   * P3UnitTests to construct indexes.
+   *
+   * @throws IOException If there is an error reading or writing files
+   */
   private static void buildIndexes() throws IOException {
     logger.info("Building indexes...");
     String indexInfoPath = inputDir + File.separator + "db" + File.separator + "index_info.txt";
@@ -184,7 +192,6 @@ public class Compiler {
     // Create indexes directory if it doesn't exist
     new File(indexDir).mkdirs();
 
-    // Read all index configurations first
     List<String> indexConfigs = Files.readAllLines(Paths.get(indexInfoPath));
     int totalIndexes = indexConfigs.size();
     int currentIndex = 0;
@@ -211,9 +218,11 @@ public class Compiler {
         String outputFile = indexDir + File.separator + tableName + "." + columnName;
 
         try {
-          // Handle clustered indexes
+          // If the index is clustered, we need to sort the relation by the indexed column
+          // first.
           if (isClustered) {
-            logger.info("Sorting relation {} for clustered index", tableName);
+            logger.info(
+                "Sorting relation {} for clustered index on column {}", tableName, columnName);
 
             // Get the column index for sorting
             int columnIndex = getColumnIndex(tableName, columnName);
@@ -221,10 +230,10 @@ public class Compiler {
               throw new IOException("Column " + columnName + " not found in table " + tableName);
             }
 
-            // Read and sort the relation
             String relationPath = dataDir + File.separator + tableName;
             String tempSortedPath = tempDir + File.separator + tableName + "_sorted";
 
+            // Read, sort, and rewrite the relation
             try (TupleReader reader = new TupleReader(relationPath)) {
               List<int[]> tuples = reader.readTuples();
               List<int[]> metadata = reader.readMetaData();
@@ -233,24 +242,14 @@ public class Compiler {
               sortTuplesOnColumn(tuples, metadata, columnIndex);
 
               // Write sorted relation back
-              TupleWriter writer = null;
-              try {
-                writer = new TupleWriter(tempSortedPath);
+              try (TupleWriter writer = new TupleWriter(tempSortedPath)) {
                 for (int[] tuple : tuples) {
                   writer.writeTuple(tuple);
-                }
-              } finally {
-                if (writer != null) {
-                  try {
-                    writer.close();
-                  } catch (IOException e) {
-                    logger.error("Error closing TupleWriter: {}", e.getMessage());
-                  }
                 }
               }
             }
 
-            // Replace original file with sorted file
+            // Replace the original file with the sorted one
             Files.move(
                 Paths.get(tempSortedPath),
                 Paths.get(relationPath),
@@ -259,23 +258,26 @@ public class Compiler {
             logger.info("Successfully sorted relation {} for clustered index", tableName);
           }
 
-          // Create individual temp file for each index
-          File tempIndexInfo =
-              new File(tempDir, "temp_index_info_" + tableName + "_" + columnName + ".txt");
-
-          // Write single index configuration to temp file
-          try (PrintWriter writer = new PrintWriter(tempIndexInfo)) {
-            writer.println(line);
-          }
-
-          // Create and use BulkLoader with temp index info file
-          BulkLoader loader = new BulkLoader(tempIndexInfo.getAbsolutePath(), outputFile);
+          // Now that the table is sorted if clustered, build the index using BulkLoader.
+          BulkLoader loader = new BulkLoader(indexInfoPath, outputFile);
           loader.buildAndSerialize();
 
-          // Clean up temp file
-          tempIndexInfo.delete();
+          // Log the index header info for verification
+          try (RandomAccessFile raf = new RandomAccessFile(outputFile, "r")) {
+            int rootAddr = raf.readInt();
+            int numLeaves = raf.readInt();
+            int indexOrder = raf.readInt();
+            logger.info(
+                "Index {}.{} header: RootAddr={}, NumLeaves={}, Order={}",
+                tableName,
+                columnName,
+                rootAddr,
+                numLeaves,
+                indexOrder);
+          }
 
           logger.info("Successfully built index for {}.{}", tableName, columnName);
+
         } catch (Exception e) {
           logger.error("Error building index for {}.{}: {}", tableName, columnName, e.getMessage());
           e.printStackTrace();

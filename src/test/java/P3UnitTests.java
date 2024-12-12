@@ -46,15 +46,15 @@ public class P3UnitTests {
     }
   }
 
+  @Disabled
   @ParameterizedTest
-  @ValueSource(ints = { 3 })
+  @ValueSource(ints = {1, 3})
   public void testQueriesWithoutIndexes(int idx) throws Exception {
     runTest(idx, false);
   }
 
-  @Disabled
   @ParameterizedTest
-  @ValueSource(ints = { 1, 3 })
+  @ValueSource(ints = {1, 3})
   public void testQueriesWithIndexes(int idx) throws Exception {
     buildIndexes();
     runTest(idx, true);
@@ -78,9 +78,12 @@ public class P3UnitTests {
     }
 
     // Print schema information
-    System.out.println(indent + "Output schema: " + op.getOutputSchema().stream()
-        .map(col -> col.getTable().getName() + "." + col.getColumnName())
-        .collect(Collectors.joining(", ")));
+    System.out.println(
+        indent
+            + "Output schema: "
+            + op.getOutputSchema().stream()
+                .map(col -> col.getTable().getName() + "." + col.getColumnName())
+                .collect(Collectors.joining(", ")));
   }
 
   private void buildIndexes() throws IOException {
@@ -103,12 +106,14 @@ public class P3UnitTests {
               int rootAddr = raf.readInt();
               int numLeaves = raf.readInt();
               int order = raf.readInt();
-              System.out.println(String.format(
-                  "Index %s.%s header: RootAddr=%d, NumLeaves=%d, Order=%d",
-                  tableName, columnName, rootAddr, numLeaves, order));
+              System.out.println(
+                  String.format(
+                      "Index %s.%s header: RootAddr=%d, NumLeaves=%d, Order=%d",
+                      tableName, columnName, rootAddr, numLeaves, order));
             }
           } catch (Exception e) {
-            System.err.println("Error building index for " + tableName + "." + columnName + ": " + e.getMessage());
+            System.err.println(
+                "Error building index for " + tableName + "." + columnName + ": " + e.getMessage());
             e.printStackTrace();
             throw e;
           }
@@ -118,15 +123,15 @@ public class P3UnitTests {
   }
 
   private void runTest(int idx, boolean useIndexes) throws Exception {
-    System.out.println("\nExecuting Query " + idx + (useIndexes ? " with" : " without") + " indexes");
+    System.out.println(
+        "\nExecuting Query " + idx + (useIndexes ? " with" : " without") + " indexes");
 
     String queries = Files.readString(Paths.get(QUERIES_FILE));
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(
-        logicalPlanBuilder.getTableAliases(),
-        INDEX_DIR);
+    PhysicalPlanBuilder physicalPlanBuilder =
+        new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), INDEX_DIR);
 
     Statement statement = statements.get(idx - 1);
     System.out.println("Executing query: " + statement.toString());
@@ -140,9 +145,8 @@ public class P3UnitTests {
       debugPhysicalPlan(physicalPlan, statement);
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
-      List<String> actualOutputString = actualOutput.stream()
-          .map(Tuple::toString)
-          .collect(Collectors.toList());
+      List<String> actualOutputString =
+          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       List<String> expectedOutput = readExpectedOutput(idx);
 
@@ -151,23 +155,27 @@ public class P3UnitTests {
       System.out.println(actualOutput);
 
       if (expectedOutput.size() != actualOutputString.size()) {
-        System.out.println("First few expected tuples: " +
-            expectedOutput.subList(0, Math.min(5, expectedOutput.size())));
-        System.out.println("First few actual tuples: " +
-            actualOutputString.subList(0, Math.min(5, actualOutputString.size())));
+        System.out.println(
+            "First few expected tuples: "
+                + expectedOutput.subList(0, Math.min(5, expectedOutput.size())));
+        System.out.println(
+            "First few actual tuples: "
+                + actualOutputString.subList(0, Math.min(5, actualOutputString.size())));
       }
 
-      assertEquals(expectedOutput.size(), actualOutputString.size(),
-          String.format("Query %d (indexes: %b) failed: Number of tuples do not match",
-              idx, useIndexes));
+      assertEquals(
+          expectedOutput.size(),
+          actualOutputString.size(),
+          String.format(
+              "Query %d (indexes: %b) failed: Number of tuples do not match", idx, useIndexes));
 
-      assertEquals(expectedOutput, actualOutputString,
-          String.format("Query %d (indexes: %b) failed: Content does not match",
-              idx, useIndexes));
+      assertEquals(
+          expectedOutput,
+          actualOutputString,
+          String.format("Query %d (indexes: %b) failed: Content does not match", idx, useIndexes));
     } else {
       throw new UnsupportedOperationException("Only SELECT statements are supported");
     }
-
   }
 
   private List<String> readExpectedOutput(int queryNumber) throws IOException {
