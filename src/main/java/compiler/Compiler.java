@@ -136,7 +136,7 @@ public class Compiler {
       StringBuilder sb = new StringBuilder();
 
       if (op instanceof DuplicateElementEliminationOperator) {
-        sb.append("DupElim");
+        sb.append("DupElim\n");
         appendChildWithIndent(sb, op.getChild(), 1);
       } else if (op instanceof ExternalSort) {
         ExternalSort sort = (ExternalSort) op;
@@ -144,7 +144,7 @@ public class Compiler {
             sort.getOrderByElements().stream()
                 .map(e -> ((Column) e.getExpression()).getFullyQualifiedName())
                 .collect(Collectors.joining(", "));
-        sb.append("ExternalSort[").append(columns).append("]");
+        sb.append("ExternalSort[").append(columns).append("]\n");
         appendChildWithIndent(sb, op.getChild(), 2);
       } else if (op instanceof ProjectOperator) {
         ProjectOperator proj = (ProjectOperator) op;
@@ -152,19 +152,19 @@ public class Compiler {
             proj.getOutputSchema().stream()
                 .map(Column::getFullyQualifiedName)
                 .collect(Collectors.joining(", "));
-        sb.append("Project[").append(columns).append("]");
+        sb.append("Project[").append(columns).append("]\n");
         appendChildWithIndent(sb, op.getChild(), 3);
       } else if (op instanceof join_algorithms.BNLJ) {
         join_algorithms.BNLJ bnlj = (join_algorithms.BNLJ) op;
-        sb.append("BNLJ[").append(bnlj.getJoinCondition()).append("]");
+        sb.append("BNLJ[").append(bnlj.getJoinCondition()).append("]\n");
         appendChildWithIndent(sb, op.getChild(), 4);
       } else if (op instanceof join_algorithms.SMJ) {
         join_algorithms.SMJ smj = (join_algorithms.SMJ) op;
-        sb.append("SMJ[").append(smj.getJoinCondition()).append("]");
+        sb.append("SMJ[").append(smj.getJoinCondition()).append("]\n");
         appendChildWithIndent(sb, op.getChild(), 4);
       } else if (op instanceof SelectOperator) {
         SelectOperator sel = (SelectOperator) op;
-        sb.append("Select[").append(sel.getCondition()).append("]");
+        sb.append("Select[").append(sel.getCondition()).append("]\n");
         appendChildWithIndent(sb, op.getChild(), 7);
       } else if (op instanceof ScanOperator) {
         ScanOperator scan = (ScanOperator) op;
