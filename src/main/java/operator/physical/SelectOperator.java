@@ -18,6 +18,7 @@ public class SelectOperator extends Operator {
     this.child = child;
     this.whereExpression = whereExpression;
     this.evaluator = new ExpressionEvaluator(tableAliases);
+    System.out.println("Created SelectOperator with condition: " + whereExpression);
   }
 
   @Override
@@ -29,10 +30,13 @@ public class SelectOperator extends Operator {
   public Tuple getNextTuple() {
     while (true) {
       Tuple nextTuple = child.getNextTuple();
+      System.out.println("SelectOperator received tuple: " + nextTuple); // Debug
       if (nextTuple == null) {
         return null;
       }
-      if (evaluator.evaluate(whereExpression, nextTuple, getOutputSchema())) {
+      boolean passes = evaluator.evaluate(whereExpression, nextTuple, getOutputSchema());
+      System.out.println("Condition evaluation: " + passes); // Debug
+      if (passes) {
         return nextTuple;
       }
     }

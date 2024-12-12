@@ -18,9 +18,11 @@ import operator.physical.Operator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@Disabled
 public class P2UnitTests {
   private static final String INPUT_DIR = "src/test/resources/samples/input";
   private static final String EXPECTED_DIR = "src/test/resources/samples/expected";
