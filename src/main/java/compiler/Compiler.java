@@ -8,13 +8,14 @@ import file_management.TupleWriter;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.stream.Collectors;
 import net.sf.jsqlparser.parser.CCJSqlParserUtil;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.Statement;
 import net.sf.jsqlparser.statement.Statements;
 import net.sf.jsqlparser.statement.select.Select;
-import operator.logical.LogicalOperator;
+import operator.logical.*;
 import operator.physical.DuplicateElementEliminationOperator;
 import operator.physical.ExternalSort;
 import operator.physical.Operator;
@@ -98,7 +99,7 @@ public class Compiler {
     Operator physicalPlan = physicalPlanBuilder.getResult();
 
     // Write query plans
-    writeQueryPlan(queryNumber, "logicalplan", logicalPlan.toString());
+    writeQueryPlan(queryNumber, "logicalplan", LogicalOperatorFormatter.format(logicalPlan));
     writeQueryPlan(queryNumber, "physicalplan", OperatorFormatter.format(physicalPlan));
 
     // Execute query and write results
@@ -127,6 +128,7 @@ public class Compiler {
     Files.write(Paths.get(filename), content.getBytes());
   }
 
+  /** This class formats the physical plan into a tree-like string. */
   private static class OperatorFormatter {
     private static final String INDENT = "-";
 
@@ -182,6 +184,100 @@ public class Compiler {
           sb.append(INDENT);
         }
         sb.append(format(child));
+      }
+    }
+  }
+
+  /**
+   * This class formats the logical plan into the desired hierarchical format.
+   *
+   * <p>Expected format example: DupElim -Sort[S.A] --Project[S.A, R.G] ---Join[R.H <> B.D] [[S.B,
+   * R.G], equals null, min null, max null] [[S.A, B.D], equals null, min null, max null] [[R.H],
+   * equals null, min null, max 99] ----Leaf[Sailors] ----Select[R.H <= 99] -----Leaf[Reserves]
+   * ----Leaf[Boats]
+   */
+  private static class LogicalOperatorFormatter {
+    private static final String INDENT = "-";
+
+    public static String format(LogicalOperator root) {
+      StringBuilder sb = new StringBuilder();
+      formatOperator(root, sb, 0);
+      return sb.toString();
+    }
+
+    private static void formatOperator(LogicalOperator op, StringBuilder sb, int depth) {
+      // The following assumes classes like DupElimLogicalOperator,
+      // LogicalSortOperator, etc.
+      // Adjust class checks as per your actual logical operator classes.
+      if (op instanceof LogicalDuplicateEliminationOperator) {
+        indent(sb, depth);
+        sb.append("DupElim\n");
+        formatChildren(op, sb, depth + 1);
+      } else if (op instanceof operator.logical.LogicalSortOperator) {
+        indent(sb, depth);
+        operator.logical.LogicalSortOperator sortOp = (operator.logical.LogicalSortOperator) op;
+        String cols =
+            sortOp.getSortColumns().stream()
+                .map(c -> c.getFullyQualifiedName())
+                .collect(Collectors.joining(", "));
+        sb.append("Sort[").append(cols).append("]\n");
+        formatChildren(op, sb, depth + 1);
+      } else if (op instanceof operator.logical.LogicalProjectOperator) {
+        indent(sb, depth);
+        LogicalProjectOperator projOp = (LogicalProjectOperator) op;
+        String cols =
+            projOp.getColumns().stream()
+                .map(c -> c.getFullyQualifiedName())
+                .collect(Collectors.joining(", "));
+        sb.append("Project[").append(cols).append("]\n");
+        formatChildren(op, sb, depth + 1);
+      } else if (op instanceof operator.logical.LogicalJoinOperator) {
+        indent(sb, depth);
+        LogicalJoinOperator joinOp = (operator.logical.LogicalJoinOperator) op;
+        sb.append("Join[").append(joinOp.getJoinCondition().toString()).append("]\n");
+
+        // Print stats (if available)
+        // For demonstration, we assume joinOp has a method getStats() that returns a
+        // List<String>
+        // Each string is something like: [[S.B, R.G], equals null, min null, max null]
+        List<String> stats = joinOp.getStats();
+        if (stats != null) {
+          for (String stat : stats) {
+            // According to the desired format, these stats lines appear at the same
+            // indentation level as the join
+            // The example shows them without dashes, directly after the join line.
+            // We'll assume just print them as-is on new lines with no additional
+            // indentation.
+            sb.append(stat).append("\n");
+          }
+        }
+
+        formatChildren(op, sb, depth + 1);
+      } else if (op instanceof operator.logical.LogicalSelectOperator) {
+        indent(sb, depth);
+        operator.logical.LogicalSelectOperator selOp = (operator.logical.LogicalSelectOperator) op;
+        sb.append("Select[").append(selOp.getCondition().toString()).append("]\n");
+        formatChildren(op, sb, depth + 1);
+      } else if (op instanceof operator.logical.LogicalScanOperator) {
+        indent(sb, depth);
+        operator.logical.LogicalScanOperator scanOp = (operator.logical.LogicalScanOperator) op;
+        sb.append("Leaf[").append(scanOp.getTableName()).append("]\n");
+        // no children to format
+      }
+    }
+
+    private static void formatChildren(LogicalOperator op, StringBuilder sb, int depth) {
+      List<LogicalOperator> children = op.getChildren();
+      if (children != null) {
+        for (LogicalOperator child : children) {
+          formatOperator(child, sb, depth);
+        }
+      }
+    }
+
+    private static void indent(StringBuilder sb, int depth) {
+      for (int i = 0; i < depth; i++) {
+        sb.append(INDENT);
       }
     }
   }

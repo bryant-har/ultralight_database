@@ -43,6 +43,16 @@ public class LogicalProjectOperator extends LogicalOperator {
   }
 
   /**
+   * Returns the list of columns (schema) that this projection outputs. This is used by the
+   * LogicalOperatorFormatter to display the projected columns.
+   *
+   * @return The list of columns defining the output schema of this operator.
+   */
+  public List<Column> getColumns() {
+    return getSchema();
+  }
+
+  /**
    * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.

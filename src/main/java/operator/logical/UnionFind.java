@@ -1,7 +1,7 @@
 package operator.logical;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * The {@code UnionFind} class implements a union-find (disjoint-set) data structure for managing
@@ -11,34 +11,6 @@ import java.util.Map;
  * <p>Each attribute is represented as a {@link UnionElement}, which can store bounds (lower and
  * upper) or an equality constraint. The union-find mechanism enables efficient merging of
  * constraints and validation.
- *
- * <h2>Key Features</h2>
- *
- * <ul>
- *   <li>Union by rank and path compression for efficient operations.
- *   <li>Management of lower bounds, upper bounds, and equality constraints.
- *   <li>Validation of merged constraints during union operations.
- * </ul>
- *
- * <h2>Usage</h2>
- *
- * <pre>{@code
- * UnionFind uf = new UnionFind();
- *
- * // Find or create elements for attributes
- * UnionFind.UnionElement elt1 = uf.find("A");
- * UnionFind.UnionElement elt2 = uf.find("B");
- *
- * // Union two elements
- * uf.union(elt1, elt2);
- *
- * // Set bounds or equality constraints
- * uf.setLowerBound(elt1, 10);
- * uf.setUpperBound(elt2, 20);
- * uf.setEqualityConstraint(elt1, 15);
- * }</pre>
- *
- * @see UnionElement
  */
 public class UnionFind {
 
@@ -202,6 +174,53 @@ public class UnionFind {
   }
 
   /**
+   * Produces a list of statistics strings from the union-find structure. Each representative set is
+   * formatted as: [[attr1, attr2, ...], equals E, min L, max U] If no equality constraint is
+   * present, equals null. If no lower bound is present, min null. If no upper bound is present, max
+   * null.
+   *
+   * @return A list of formatted statistics strings.
+   */
+  public List<String> getStatsStrings() {
+    // First, find all representatives
+    Map<UnionElement, List<UnionElement>> sets = new HashMap<>();
+    for (UnionElement ue : elements.values()) {
+      UnionElement root = findSet(ue);
+      sets.computeIfAbsent(root, k -> new ArrayList<>()).add(ue);
+    }
+
+    List<String> stats = new ArrayList<>();
+    for (Map.Entry<UnionElement, List<UnionElement>> entry : sets.entrySet()) {
+      UnionElement rep = entry.getKey();
+      List<UnionElement> setElements = entry.getValue();
+      List<String> attrs =
+          setElements.stream().map(e -> e.attribute).sorted().collect(Collectors.toList());
+
+      Double equalsVal = rep.equalityConstraint;
+      Double minVal = rep.lowerBound;
+      Double maxVal = rep.upperBound;
+
+      String equalsStr = equalsVal == null ? "null" : equalsVal.toString();
+      String minStr = minVal == null ? "null" : minVal.toString();
+      String maxStr = maxVal == null ? "null" : maxVal.toString();
+
+      String line =
+          "[["
+              + String.join(", ", attrs)
+              + "], equals "
+              + equalsStr
+              + ", min "
+              + minStr
+              + ", max "
+              + maxStr
+              + "]";
+      stats.add(line);
+    }
+
+    return stats;
+  }
+
+  /**
    * The {@code UnionElement} class represents an element in the union-find structure. Each element
    * stores its parent, rank, bounds, equality constraint, and associated attribute.
    */
@@ -252,33 +271,6 @@ public class UnionFind {
      */
     public Double getEqualityConstraint() {
       return equalityConstraint;
-    }
-  }
-
-  /**
-   * Main method for basic testing of the {@code UnionFind} class.
-   *
-   * @param args Command-line arguments (not used).
-   */
-  public static void main(String[] args) {
-    UnionFind uf = new UnionFind();
-
-    UnionFind.UnionElement elt1 = uf.find("A");
-    UnionFind.UnionElement elt2 = uf.find("B");
-    UnionFind.UnionElement elt3 = uf.find("C");
-
-    uf.union(elt1, elt2);
-    assert uf.find("A") == uf.find("B");
-
-    uf.setLowerBound(elt1, 10);
-    uf.setUpperBound(elt2, 20);
-    assert elt1.getLowerBound() == 10 && elt1.getUpperBound() == 20;
-
-    try {
-      uf.setEqualityConstraint(elt3, 15);
-      uf.setLowerBound(elt3, 20); // Should throw an exception
-    } catch (IllegalStateException e) {
-      System.out.println("Caught expected conflict: " + e.getMessage());
     }
   }
 }

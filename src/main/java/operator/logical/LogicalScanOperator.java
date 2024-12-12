@@ -37,6 +37,16 @@ public class LogicalScanOperator extends LogicalOperator {
   }
 
   /**
+   * A convenience method to return just the name of the table being scanned. Used by the
+   * LogicalOperatorFormatter.
+   *
+   * @return The name of the scanned table.
+   */
+  public String getTableName() {
+    return table.getName();
+  }
+
+  /**
    * Accepts a visitor, allowing the visitor to perform operations on this operator.
    *
    * @param visitor The LogicalOperatorVisitor visiting this operator.

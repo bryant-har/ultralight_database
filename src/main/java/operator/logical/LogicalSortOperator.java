@@ -1,14 +1,16 @@
-/**
- * Represents a logical SORT operation in a query plan. This operator sorts the rows from its child
- * operator based on specified ordering elements.
- */
 package operator.logical;
 
 import common.LogicalOperatorVisitor;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.statement.select.OrderByElement;
 
+/**
+ * Represents a logical SORT operation in a query plan. This operator sorts the rows from its child
+ * operator based on specified ordering elements.
+ */
 public class LogicalSortOperator extends LogicalOperator {
 
   /** The child operator whose output this operator sorts. */
@@ -36,6 +38,19 @@ public class LogicalSortOperator extends LogicalOperator {
    */
   public List<OrderByElement> getOrderByElements() {
     return orderByElements;
+  }
+
+  /**
+   * A convenience method to return the columns that we are sorting by, used by the
+   * LogicalOperatorFormatter.
+   *
+   * @return A list of Columns representing the sort keys.
+   */
+  public List<Column> getSortColumns() {
+    // Extract columns from the orderByElements
+    return orderByElements.stream()
+        .map(obe -> (Column) obe.getExpression()) // Assuming all order by expressions are columns
+        .collect(Collectors.toList());
   }
 
   /**
