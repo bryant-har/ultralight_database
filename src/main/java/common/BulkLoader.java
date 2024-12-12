@@ -32,11 +32,12 @@ public class BulkLoader {
       while ((line = br.readLine()) != null) {
         String[] parts = line.split("\\s+");
         if (parts.length >= 4) {
-          String expectedOutputFile = indexInfoFilePath.substring(0, indexInfoFilePath.lastIndexOf("/"))
-              + "/indexes/"
-              + parts[0]
-              + "."
-              + parts[1];
+          String expectedOutputFile =
+              indexInfoFilePath.substring(0, indexInfoFilePath.lastIndexOf("/"))
+                  + "/indexes/"
+                  + parts[0]
+                  + "."
+                  + parts[1];
           if (expectedOutputFile.equals(outputFileName)) {
             this.relationName = parts[0];
             this.indexColumn = parts[1];
@@ -131,7 +132,7 @@ public class BulkLoader {
         System.out.println("Read value=" + actualValue + " at column " + keyColumnIndex);
 
         if (actualValue == key) {
-          int[] rid = new int[] { pageId, tupleId };
+          int[] rid = new int[] {pageId, tupleId};
           if (!containsRID(currentEntry.rids, rid)) {
             currentEntry.rids.add(rid);
             System.out.println("Added RID (" + pageId + "," + tupleId + ") for key " + key);
@@ -190,10 +191,12 @@ public class BulkLoader {
   }
 
   private void writeSortedRelation() throws IOException {
-    String sortedFileName = DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath() + "_sorted";
+    String sortedFileName =
+        DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath() + "_sorted";
 
-    try (RandomAccessFile dataFile = new RandomAccessFile(
-        DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath(), "r");
+    try (RandomAccessFile dataFile =
+            new RandomAccessFile(
+                DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath(), "r");
         RandomAccessFile sortedFile = new RandomAccessFile(sortedFileName, "rw")) {
 
       dataFile.seek(0);
