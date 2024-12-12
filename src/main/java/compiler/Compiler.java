@@ -98,9 +98,8 @@ public class Compiler {
     Operator physicalPlan = physicalPlanBuilder.getResult();
 
     // Write query plans
-    // writeQueryPlan(queryNumber, "logicalplan", logicalPlan.toString());
-    // writeQueryPlan(queryNumber, "physicalplan",
-    // OperatorFormatter.format(physicalPlan));
+    writeQueryPlan(queryNumber, "logicalplan", logicalPlan.toString());
+    writeQueryPlan(queryNumber, "physicalplan", OperatorFormatter.format(physicalPlan));
 
     // Execute query and write results
     String outputFile = outputDir + File.separator + "query" + queryNumber;

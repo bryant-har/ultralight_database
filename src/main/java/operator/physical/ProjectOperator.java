@@ -117,4 +117,8 @@ public class ProjectOperator extends Operator {
     }
     return new Tuple(projectedValues);
   }
+
+  public Operator getChild() {
+    return child;
+  }
 }

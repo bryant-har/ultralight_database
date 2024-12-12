@@ -84,6 +84,7 @@ public abstract class Operator {
   }
 
   public Operator getChild() {
-    throw new UnsupportedOperationException("This operator doesn't support getChild()");
+    throw new UnsupportedOperationException(
+        "This operator doesn't support getChild()" + this.toString());
   }
 }
