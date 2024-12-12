@@ -293,4 +293,13 @@ public class SMJ extends Operator {
     combinedSchema.addAll(rightSchema); // Add columns from the right schema
     return combinedSchema;
   }
+
+  public Expression getJoinCondition() {
+    return joinCondition;
+  }
+
+  @Override
+  public Operator getChild() {
+    return leftChild; // Returns left child for tree visualization
+  }
 }

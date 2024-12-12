@@ -77,10 +77,10 @@ public class ScanOperator extends Operator {
    * @param printStream stream to receive output, one tuple per line.
    */
   // public void dump(PrintStream printStream) {
-  //   Tuple t;
-  //   while ((t = this.getNextTuple()) != null) {
-  //     printStream.println(t);
-  //   }
+  // Tuple t;
+  // while ((t = this.getNextTuple()) != null) {
+  // printStream.println(t);
+  // }
   // }
 
 }

@@ -225,39 +225,16 @@ public class JoinOrderOptimizer {
 
     for (String table : conditionTables) {
       int index = getTableIndex(table);
+      // Add check for invalid index
+      if (index == -1) {
+        return false; // Invalid table reference, condition cannot be applied
+      }
       if (leftSet.get(index)) usesLeft = true;
       else if (rightSet.get(index)) usesRight = true;
       else usesOther = true;
     }
 
     return usesLeft && usesRight && !usesOther;
-  }
-
-  /** Estimates the size of the result of a join. */
-  private int estimateJoinSize(
-      int leftSize,
-      int rightSize,
-      Map<String, Integer> leftVValues,
-      Map<String, Integer> rightVValues,
-      List<Expression> conditions) {
-    double joinSize = leftSize * rightSize;
-
-    for (Expression condition : conditions) {
-      if (isEquiJoinCondition(condition)) {
-        Column leftCol = getLeftColumn(condition);
-        Column rightCol = getRightColumn(condition);
-
-        String leftKey = leftCol.getFullyQualifiedName();
-        String rightKey = rightCol.getFullyQualifiedName();
-
-        Integer leftV = leftVValues.getOrDefault(leftKey, 100);
-        Integer rightV = rightVValues.getOrDefault(rightKey, 100);
-
-        joinSize /= Math.max(leftV, rightV);
-      }
-    }
-
-    return Math.max(1, (int) joinSize);
   }
 
   /** Computes the V-values for a base operator. */
@@ -418,5 +395,55 @@ public class JoinOrderOptimizer {
     BitSet allTables = new BitSet(baseOperators.size());
     allTables.set(0, baseOperators.size());
     return dpConditions.get(allTables);
+  }
+
+  private boolean isJoinCondition(Expression condition) {
+    if (condition instanceof ComparisonOperator) {
+      ComparisonOperator comp = (ComparisonOperator) condition;
+      if (comp.getLeftExpression() instanceof Column
+          && comp.getRightExpression() instanceof Column) {
+        Column leftCol = (Column) comp.getLeftExpression();
+        Column rightCol = (Column) comp.getRightExpression();
+        String leftTable = leftCol.getTable().getName();
+        String rightTable = rightCol.getTable().getName();
+        return !leftTable.equals(rightTable);
+      }
+    }
+    return false;
+  }
+
+  private int estimateJoinSize(
+      int leftSize,
+      int rightSize,
+      Map<String, Integer> leftVValues,
+      Map<String, Integer> rightVValues,
+      List<Expression> conditions) {
+
+    double joinSize = leftSize * rightSize;
+
+    for (Expression condition : conditions) {
+      if (condition instanceof ComparisonOperator) {
+        ComparisonOperator comp = (ComparisonOperator) condition;
+        if (comp instanceof EqualsTo) {
+          // For equijoins, use the usual estimation
+          Column leftCol = (Column) comp.getLeftExpression();
+          Column rightCol = (Column) comp.getRightExpression();
+
+          String leftKey = leftCol.getFullyQualifiedName();
+          String rightKey = rightCol.getFullyQualifiedName();
+
+          Integer leftV = leftVValues.getOrDefault(leftKey, 100);
+          Integer rightV = rightVValues.getOrDefault(rightKey, 100);
+
+          joinSize /= Math.max(leftV, rightV);
+        } else {
+          // For non-equijoins, use a different selectivity estimate
+          // Assuming 30% selectivity for non-equijoins
+          joinSize *= 0.3;
+        }
+      }
+    }
+
+    return Math.max(1, (int) joinSize);
   }
 }

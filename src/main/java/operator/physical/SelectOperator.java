@@ -46,4 +46,13 @@ public class SelectOperator extends Operator {
   public ArrayList<Column> getOutputSchema() {
     return child.getOutputSchema();
   }
+
+  public Expression getCondition() {
+    return whereExpression;
+  }
+
+  @Override
+  public Operator getChild() {
+    return child;
+  }
 }

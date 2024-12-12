@@ -29,6 +29,7 @@ public class ExternalSort extends SortOperator {
   private ArrayList<int[]> currentBatch =
       new ArrayList<>(); // Current batch of tuples being processed
   private int currentIndex; // Index for reading tuples from the current batch
+  private List<OrderByElement> orderByElements;
 
   /**
    * Inner class to wrap a tuple with its associated TupleReader and run index. It implements
@@ -71,17 +72,15 @@ public class ExternalSort extends SortOperator {
       String tempDir) {
     super(schema, child, orderByElements);
     this.child = child;
+    this.orderByElements = orderByElements;
     this.bufferPages = bufferPages;
-    this.operatorId = new Random().nextInt(1000000); // Generate a unique operator ID
+    this.operatorId = new Random().nextInt(1000000);
     this.tempDir = tempDir + File.separator + "sort_" + operatorId + File.separator;
     this.currentIndex = 0;
 
-    // Create the temp directory for storing runs
     new File(this.tempDir).mkdirs();
-    // Set the comparator for tuple comparison
     TupleWithReader.comparator = new TupleComparator();
 
-    // Perform the actual external sort
     performSort();
   }
 
@@ -318,5 +317,14 @@ public class ExternalSort extends SortOperator {
     } catch (IOException e) {
       throw new RuntimeException("Error during finalizing", e);
     }
+  }
+
+  public List<OrderByElement> getOrderByElements() {
+    return orderByElements;
+  }
+
+  @Override
+  public Operator getChild() {
+    return child;
   }
 }

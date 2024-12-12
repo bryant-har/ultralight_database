@@ -112,9 +112,10 @@ public class BNLJ extends Operator {
 
       if (joinCondition == null || evaluateJoinCondition(joinedTuple)) {
         // Use this as a debug statemnt
-        // System.out.println("returning out joinedTuple " + joinedTuple + " innerPointer: " +
+        // System.out.println("returning out joinedTuple " + joinedTuple + "
+        // innerPointer: " +
         // innerPointer
-        //     + " outerPointer: " + outerPointer);
+        // + " outerPointer: " + outerPointer);
         return joinedTuple;
       }
     }
@@ -179,5 +180,14 @@ public class BNLJ extends Operator {
 
   private boolean evaluateJoinCondition(Tuple tuple) {
     return expressionEvaluator.evaluate(joinCondition, tuple, this.outputSchema);
+  }
+
+  public Expression getJoinCondition() {
+    return joinCondition;
+  }
+
+  @Override
+  public Operator getChild() {
+    return leftChild; // Returns left child for tree visualization
   }
 }

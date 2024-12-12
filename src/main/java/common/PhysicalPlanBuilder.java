@@ -2,50 +2,36 @@ package common;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import join_algorithms.BNLJ;
-import join_algorithms.SMJ;
+import java.util.Set;
+import java.util.stream.Collectors;
+import join_algorithms.*;
+import net.sf.jsqlparser.expression.Alias;
 import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.operators.conditional.AndExpression;
+import net.sf.jsqlparser.expression.operators.relational.ComparisonOperator;
 import net.sf.jsqlparser.schema.Column;
+import net.sf.jsqlparser.schema.Table;
 import net.sf.jsqlparser.statement.select.OrderByElement;
 import operator.logical.*;
 import operator.physical.*;
 
-/**
- * The PhysicalPlanBuilder class is responsible for constructing a physical query execution plan
- * from a logical query plan. It translates logical operators into appropriate physical operators,
- * considering optimization strategies like index usage, sort-merge joins, and block nested-loop
- * joins.
- */
 public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
-  private Operator result; // The resulting physical operator
-  private final Map<String, String> tableAliases; // Map of table aliases to actual table names
-  private final String tempDir; // Path to the directory for temporary files
-  private DBCatalog dbCatalog; // Database catalog for accessing metadata
+  private Operator result;
+  private final Map<String, String> tableAliases;
+  private final String tempDir;
+  private DBCatalog dbCatalog;
+  private final int BNLJ_BUFFER_PAGES = 3;
+  private final int SORT_BUFFER_PAGES = 3;
 
-  // Configuration constants
-  private final int BNLJ_BUFFER_PAGES = 3; // Number of buffer pages for block nested-loop join
-  private final int SORT_BUFFER_PAGES = 3; // Number of buffer pages for external sort
-
-  /**
-   * Constructor for the PhysicalPlanBuilder.
-   *
-   * @param tableAliases Map of table aliases to table names.
-   * @param tempDir Directory path for temporary files.
-   */
   public PhysicalPlanBuilder(Map<String, String> tableAliases, String tempDir) {
     this.tableAliases = tableAliases;
     this.tempDir = tempDir;
     this.dbCatalog = DBCatalog.getInstance();
   }
 
-  /**
-   * Processes a LogicalScanOperator and converts it into a physical ScanOperator.
-   *
-   * @param op The LogicalScanOperator.
-   */
   @Override
   public void visit(LogicalScanOperator op) {
     ArrayList<Column> schema = new ArrayList<>(op.getSchema());
@@ -53,19 +39,12 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     result = new ScanOperator(schema, tableName);
   }
 
-  /**
-   * Processes a LogicalSelectOperator and converts it into a SelectOperator. If an index is
-   * available, an IndexScanOperator is used.
-   *
-   * @param op The LogicalSelectOperator.
-   */
   @Override
   public void visit(LogicalSelectOperator op) {
     if (op.getChildren().get(0) instanceof LogicalScanOperator) {
       LogicalScanOperator scanOp = (LogicalScanOperator) op.getChildren().get(0);
       String tableName = resolveTableName(scanOp.getTable().getName());
 
-      // Analyze the selection condition to find the best index
       SelectionAnalyzer analyzer = findBestIndex(tableName, op.getCondition());
 
       if (analyzer != null && analyzer.hasIndexConditions()) {
@@ -81,31 +60,23 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
                 analyzer.getHighKey(),
                 indexColumn);
 
-        // Apply any remaining conditions not handled by the index
         List<Expression> remainingConditions = analyzer.getRemainingConditions();
         if (!remainingConditions.isEmpty()) {
           Expression remainingExpr = buildAndExpression(remainingConditions);
           result = new SelectOperator(result, remainingExpr, tableAliases);
         }
-
-        // Default case: Create a SelectOperator without index usage
+      } else {
         op.getChildren().get(0).accept(this);
         result = new SelectOperator(result, op.getCondition(), tableAliases);
       }
     }
   }
 
-  /**
-   * Processes a LogicalJoinOperator and converts it into a tree of join operators.
-   *
-   * @param op The LogicalJoinOperator.
-   */
   @Override
   public void visit(LogicalJoinOperator op) {
     List<LogicalOperator> children = op.getChildren();
     List<Operator> physicalChildren = new ArrayList<>();
 
-    // Convert all logical children into physical operators
     for (LogicalOperator child : children) {
       child.accept(this);
       physicalChildren.add(result);
@@ -114,7 +85,6 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     List<Expression> residualConditions = op.getResidualConditions();
     UnionFind unionFind = op.getUnionFind();
 
-    // Optimize the join order and build the join tree
     JoinOrderOptimizer optimizer =
         new JoinOrderOptimizer(physicalChildren, residualConditions, unionFind, dbCatalog);
 
@@ -122,22 +92,12 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
         buildJoinTree(optimizer.getOptimalOrder(), optimizer.getJoinConditions(), physicalChildren);
   }
 
-  /**
-   * Processes a LogicalProjectOperator and converts it into a ProjectOperator.
-   *
-   * @param op The LogicalProjectOperator.
-   */
   @Override
   public void visit(LogicalProjectOperator op) {
     op.getChildren().get(0).accept(this);
     result = new ProjectOperator(result, op.getSchema(), op.getSelectItems());
   }
 
-  /**
-   * Processes a LogicalSortOperator and converts it into an ExternalSort operator.
-   *
-   * @param op The LogicalSortOperator.
-   */
   @Override
   public void visit(LogicalSortOperator op) {
     op.getChildren().get(0).accept(this);
@@ -150,12 +110,6 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
             tempDir);
   }
 
-  /**
-   * Processes a LogicalDuplicateEliminationOperator and converts it into a
-   * DuplicateElementEliminationOperator.
-   *
-   * @param op The LogicalDuplicateEliminationOperator.
-   */
   @Override
   public void visit(LogicalDuplicateEliminationOperator op) {
     op.getChildren().get(0).accept(this);
@@ -163,68 +117,213 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
         new DuplicateElementEliminationOperator(new ArrayList<>(result.getOutputSchema()), result);
   }
 
-  /**
-   * Builds a tree of join operators based on the specified join order and conditions.
-   *
-   * @param joinOrder List of indices representing the join order.
-   * @param conditions List of join conditions.
-   * @param children List of physical child operators.
-   * @return The root of the join tree.
-   */
   private Operator buildJoinTree(
       List<Integer> joinOrder, List<Expression> conditions, List<Operator> children) {
-    Operator current = children.get(joinOrder.get(0));
 
-    for (int i = 1; i < joinOrder.size(); i++) {
-      Operator right = children.get(joinOrder.get(i));
-      Expression condition = conditions.get(i - 1);
+    System.out.println("=== Join Tree Building Debug Info ===");
+    System.out.println("Join order size: " + joinOrder.size());
+    System.out.println("Join order: " + joinOrder);
+    System.out.println("Children size: " + children.size());
+    System.out.println("Conditions size: " + conditions.size());
 
-      // Use sort-merge join for equi-joins with large datasets
-      if (shouldUseSortMerge(condition, current, right)) {
-        List<Column> leftColumns = new ArrayList<>();
-        List<Column> rightColumns = new ArrayList<>();
-        extractJoinColumns(condition, leftColumns, rightColumns, current, right);
-
-        // Sort both sides before performing the join
-        List<OrderByElement> leftOrderBy = createOrderByElements(leftColumns);
-        List<OrderByElement> rightOrderBy = createOrderByElements(rightColumns);
-
-        Operator sortedLeft =
-            new ExternalSort(
-                new ArrayList<>(current.getOutputSchema()),
-                current,
-                leftOrderBy,
-                SORT_BUFFER_PAGES,
-                tempDir);
-
-        Operator sortedRight =
-            new ExternalSort(
-                new ArrayList<>(right.getOutputSchema()),
-                right,
-                rightOrderBy,
-                SORT_BUFFER_PAGES,
-                tempDir);
-
-        current =
-            new SMJ(sortedLeft, sortedRight, condition, tableAliases, leftColumns, rightColumns);
-      } else {
-        // Use block nested-loop join for smaller datasets
-        current = new BNLJ(current, right, condition, tableAliases, BNLJ_BUFFER_PAGES);
-      }
+    if (joinOrder == null || conditions == null || children == null) {
+      throw new IllegalArgumentException("Null inputs not allowed in buildJoinTree");
     }
 
+    if (joinOrder.isEmpty()) {
+      throw new IllegalArgumentException("Join order cannot be empty");
+    }
+
+    if (children.isEmpty()) {
+      throw new IllegalArgumentException("Children list cannot be empty");
+    }
+
+    if (joinOrder.size() != children.size()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Join order size (%d) must match children size (%d)",
+              joinOrder.size(), children.size()));
+    }
+
+    int firstIndex = joinOrder.get(0);
+    if (firstIndex >= children.size()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid first join index: %d for children size: %d", firstIndex, children.size()));
+    }
+
+    Operator current = children.get(joinOrder.get(0));
+    System.out.println("Initial operator schema: " + current.getOutputSchema());
+
+    int conditionIndex = 0;
+    for (int i = 1; i < joinOrder.size(); i++) {
+      System.out.println("Processing join " + i + " of " + (joinOrder.size() - 1));
+
+      int rightIndex = joinOrder.get(i);
+      if (rightIndex >= children.size()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Invalid join index at position %d: %d for children size: %d",
+                i, rightIndex, children.size()));
+      }
+
+      Operator right = children.get(rightIndex);
+      Expression joinCondition = null;
+      while (conditionIndex < conditions.size()) {
+        Expression condition = conditions.get(conditionIndex);
+        if (isConditionApplicable(condition, current, right)) {
+          joinCondition = condition;
+          conditionIndex++;
+          break;
+        }
+        conditionIndex++;
+      }
+
+      System.out.println("Join condition: " + joinCondition);
+      System.out.println("Right operator schema: " + right.getOutputSchema());
+
+      if (joinCondition != null && shouldUseSortMerge(joinCondition, current, right)) {
+        List<Column> leftColumns = new ArrayList<>();
+        List<Column> rightColumns = new ArrayList<>();
+        extractJoinColumns(joinCondition, leftColumns, rightColumns, current, right);
+
+        current = createSortMergeJoin(current, right, joinCondition, leftColumns, rightColumns);
+      } else {
+        current = new BNLJ(current, right, joinCondition, tableAliases, BNLJ_BUFFER_PAGES);
+      }
+
+      System.out.println("Resulting schema after join " + i + ": " + current.getOutputSchema());
+    }
+
+    System.out.println("=== Join Tree Building Complete ===");
     return current;
   }
 
-  /**
-   * Extracts join columns for sort-merge join from the join condition.
-   *
-   * @param condition The join condition.
-   * @param leftColumns List to store left-side join columns.
-   * @param rightColumns List to store right-side join columns.
-   * @param leftChild The left child operator.
-   * @param rightChild The right child operator.
-   */
+  private boolean shouldUseSortMerge(Expression condition, Operator left, Operator right) {
+    if (!isEquiJoinOnly(condition)) {
+      return false;
+    }
+
+    int leftSize = estimateSize(left);
+    int rightSize = estimateSize(right);
+
+    if (leftSize > 1000 && rightSize > 1000) {
+      return true;
+    }
+
+    if (leftSize < 100 || rightSize < 100) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private Operator createSortMergeJoin(
+      Operator left,
+      Operator right,
+      Expression condition,
+      List<Column> leftColumns,
+      List<Column> rightColumns) {
+
+    List<OrderByElement> leftOrderBy = createOrderByElements(leftColumns);
+    List<OrderByElement> rightOrderBy = createOrderByElements(rightColumns);
+
+    Operator sortedLeft =
+        new ExternalSort(
+            new ArrayList<>(left.getOutputSchema()), left, leftOrderBy, SORT_BUFFER_PAGES, tempDir);
+
+    Operator sortedRight =
+        new ExternalSort(
+            new ArrayList<>(right.getOutputSchema()),
+            right,
+            rightOrderBy,
+            SORT_BUFFER_PAGES,
+            tempDir);
+
+    return new SMJ(sortedLeft, sortedRight, condition, tableAliases, leftColumns, rightColumns);
+  }
+
+  private List<OrderByElement> createOrderByElements(List<Column> columns) {
+    List<OrderByElement> orderByElements = new ArrayList<>();
+    for (Column col : columns) {
+      OrderByElement orderBy = new OrderByElement();
+      orderBy.setExpression(col);
+      orderBy.setAsc(true);
+      orderByElements.add(orderBy);
+    }
+    return orderByElements;
+  }
+
+  private boolean isConditionApplicable(Expression condition, Operator left, Operator right) {
+    Set<String> leftTables = getTablesFromSchema(left.getOutputSchema());
+    Set<String> rightTables = getTablesFromSchema(right.getOutputSchema());
+    Set<String> conditionTables = getTablesInCondition(condition);
+
+    boolean usesLeft = false;
+    boolean usesRight = false;
+    boolean usesOther = false;
+
+    for (String table : conditionTables) {
+      if (leftTables.contains(table)) {
+        usesLeft = true;
+      } else if (rightTables.contains(table)) {
+        usesRight = true;
+      } else {
+        usesOther = true;
+      }
+    }
+
+    return usesLeft && usesRight && !usesOther;
+  }
+
+  private Set<String> getTablesFromSchema(List<Column> schema) {
+    Set<String> tables = new HashSet<>();
+    for (Column col : schema) {
+      String tableName = col.getTable().getName();
+      if (tableName != null) {
+        tables.add(tableName);
+      }
+      if (col.getTable().getAlias() != null) {
+        tables.add(col.getTable().getAlias().getName());
+      }
+    }
+    return tables;
+  }
+
+  private Set<String> getTablesInCondition(Expression condition) {
+    Set<String> tables = new HashSet<>();
+
+    if (condition instanceof ComparisonOperator) {
+      ComparisonOperator comp = (ComparisonOperator) condition;
+
+      if (comp.getLeftExpression() instanceof Column) {
+        Column col = (Column) comp.getLeftExpression();
+        if (col.getTable() != null) {
+          if (col.getTable().getName() != null) {
+            tables.add(col.getTable().getName());
+          }
+          if (col.getTable().getAlias() != null) {
+            tables.add(col.getTable().getAlias().getName());
+          }
+        }
+      }
+
+      if (comp.getRightExpression() instanceof Column) {
+        Column col = (Column) comp.getRightExpression();
+        if (col.getTable() != null) {
+          if (col.getTable().getName() != null) {
+            tables.add(col.getTable().getName());
+          }
+          if (col.getTable().getAlias() != null) {
+            tables.add(col.getTable().getAlias().getName());
+          }
+        }
+      }
+    }
+
+    return tables;
+  }
+
   private void extractJoinColumns(
       Expression condition,
       List<Column> leftColumns,
@@ -240,75 +339,20 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     rightColumns.addAll(analyzer.getRightSortColumns());
   }
 
-  /**
-   * Creates a list of OrderByElements from a list of columns.
-   *
-   * @param columns The columns for which to create OrderByElements.
-   * @return The list of OrderByElements.
-   */
-  private List<OrderByElement> createOrderByElements(List<Column> columns) {
-    List<OrderByElement> orderByElements = new ArrayList<>();
-    for (Column col : columns) {
-      OrderByElement orderBy = new OrderByElement();
-      orderBy.setExpression(col);
-      orderBy.setAsc(true);
-      orderByElements.add(orderBy);
-    }
-    return orderByElements;
-  }
-
-  /**
-   * Determines whether to use sort-merge join based on the join condition and dataset sizes.
-   *
-   * @param condition The join condition.
-   * @param left The left operator.
-   * @param right The right operator.
-   * @return True if sort-merge join should be used, false otherwise.
-   */
-  private boolean shouldUseSortMerge(Expression condition, Operator left, Operator right) {
-    if (!isEquiJoinOnly(condition)) {
-      return false;
-    }
-
-    int leftSize = estimateSize(left);
-    int rightSize = estimateSize(right);
-
-    return leftSize > 1000 && rightSize > 1000;
-  }
-
-  /**
-   * Checks whether a join condition is an equi-join.
-   *
-   * @param condition The join condition.
-   * @return True if the condition is an equi-join, false otherwise.
-   */
   private boolean isEquiJoinOnly(Expression condition) {
     JoinConditionAnalyzer analyzer = new JoinConditionAnalyzer("", "");
     condition.accept(analyzer);
     return analyzer.isValidEquiJoin();
   }
 
-  /**
-   * Estimates the size of a dataset represented by an operator.
-   *
-   * @param op The operator.
-   * @return The estimated size of the dataset.
-   */
   private int estimateSize(Operator op) {
     if (op instanceof ScanOperator) {
       String tableName = op.getOutputSchema().get(0).getTable().getName();
       return dbCatalog.getTableTupleCount(tableName);
     }
-    return 1000; // Default size estimate
+    return 1000;
   }
 
-  /**
-   * Finds the best index for a selection condition on a table.
-   *
-   * @param tableName The table name.
-   * @param condition The selection condition.
-   * @return The best SelectionAnalyzer, or null if no suitable index is found.
-   */
   private SelectionAnalyzer findBestIndex(String tableName, Expression condition) {
     SelectionAnalyzer bestAnalyzer = null;
     int bestScore = -1;
@@ -333,71 +377,36 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
     return bestAnalyzer;
   }
 
-  /**
-   * Scores the usage of an index based on its characteristics.
-   *
-   * @param analyzer The SelectionAnalyzer for the index.
-   * @param tableName The table name.
-   * @param columnName The column name.
-   * @return The score for the index.
-   */
   private int scoreIndexUsage(SelectionAnalyzer analyzer, String tableName, String columnName) {
     int score = 0;
 
     if (analyzer.getLowKey() != null && analyzer.getLowKey().equals(analyzer.getHighKey())) {
-      score += 3; // Equality condition
+      score += 3;
     }
 
-    if (analyzer.getLowKey() != null) score += 1; // Lower bound exists
-    if (analyzer.getHighKey() != null) score += 1; // Upper bound exists
+    if (analyzer.getLowKey() != null) score += 1;
+    if (analyzer.getHighKey() != null) score += 1;
 
     if (isIndexClustered(tableName, columnName)) {
-      score += 2; // Prefer clustered indexes
+      score += 2;
     }
 
     return score;
   }
 
-  /**
-   * Checks if a table has an index on a specific column.
-   *
-   * @param tableName The table name.
-   * @param columnName The column name.
-   * @return True if an index exists, false otherwise.
-   */
   private boolean hasIndex(String tableName, String columnName) {
     String indexPath = String.format("%s/%s.%s", tempDir, tableName, columnName);
     return new File(indexPath).exists();
   }
 
-  /**
-   * Determines if an index is clustered.
-   *
-   * @param tableName The table name.
-   * @param columnName The column name.
-   * @return True if the index is clustered, false otherwise.
-   */
   private boolean isIndexClustered(String tableName, String columnName) {
-    // For now, returning false as default. Actual check can be implemented later.
     return false;
   }
 
-  /**
-   * Resolves a table name or alias to its actual table name.
-   *
-   * @param tableNameOrAlias The table name or alias.
-   * @return The resolved table name.
-   */
   private String resolveTableName(String tableNameOrAlias) {
     return tableAliases.getOrDefault(tableNameOrAlias, tableNameOrAlias);
   }
 
-  /**
-   * Combines a list of conditions using AND.
-   *
-   * @param conditions The list of conditions.
-   * @return The combined condition.
-   */
   private Expression buildAndExpression(List<Expression> conditions) {
     if (conditions.isEmpty()) {
       return null;
@@ -408,6 +417,41 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
       result = new AndExpression(result, conditions.get(i));
     }
     return result;
+  }
+
+  private static ArrayList<Column> combineSchemas(
+      ArrayList<Column> leftSchema, ArrayList<Column> rightSchema) {
+    ArrayList<Column> combinedSchema = new ArrayList<>();
+
+    // Add columns from left schema
+    for (Column col : leftSchema) {
+      Table table = new Table();
+      table.setName(col.getTable().getName());
+      if (col.getTable().getAlias() != null) {
+        table.setAlias(new Alias(col.getTable().getAlias().getName()));
+      }
+      Column newCol = new Column(table, col.getColumnName());
+      combinedSchema.add(newCol);
+    }
+
+    // Add columns from right schema
+    for (Column col : rightSchema) {
+      Table table = new Table();
+      table.setName(col.getTable().getName());
+      if (col.getTable().getAlias() != null) {
+        table.setAlias(new Alias(col.getTable().getAlias().getName()));
+      }
+      Column newCol = new Column(table, col.getColumnName());
+      combinedSchema.add(newCol);
+    }
+
+    System.out.println(
+        "Combined schema: "
+            + combinedSchema.stream()
+                .map(Column::getFullyQualifiedName)
+                .collect(Collectors.joining(", ")));
+
+    return combinedSchema;
   }
 
   /**

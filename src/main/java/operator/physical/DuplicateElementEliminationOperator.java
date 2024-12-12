@@ -61,4 +61,8 @@ public class DuplicateElementEliminationOperator extends Operator {
     }
     return uniqueTuples;
   }
+
+  public Operator getChild() {
+    return childOperator;
+  }
 }

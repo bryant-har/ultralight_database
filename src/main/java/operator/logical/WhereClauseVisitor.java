@@ -15,6 +15,7 @@ import net.sf.jsqlparser.expression.operators.relational.GreaterThan;
 import net.sf.jsqlparser.expression.operators.relational.GreaterThanEquals;
 import net.sf.jsqlparser.expression.operators.relational.MinorThan;
 import net.sf.jsqlparser.expression.operators.relational.MinorThanEquals;
+import net.sf.jsqlparser.expression.operators.relational.NotEqualsTo;
 import net.sf.jsqlparser.schema.Column;
 import net.sf.jsqlparser.schema.Table;
 
@@ -410,5 +411,40 @@ public class WhereClauseVisitor extends ExpressionVisitorAdapter {
   public Double getEqualityConstraint(String attr) {
     UnionFind.UnionElement element = unionFind.find(attr);
     return element != null ? element.getEqualityConstraint() : null;
+  }
+
+  @Override
+  public void visit(NotEqualsTo expr) {
+    if (expr.getLeftExpression() instanceof Column && expr.getRightExpression() instanceof Column) {
+      // Handle Column <> Column case as a join condition
+      Column leftCol = (Column) expr.getLeftExpression();
+      Column rightCol = (Column) expr.getRightExpression();
+
+      Table leftTable = getTableFromAlias(leftCol.getTable().getName());
+      Table rightTable = getTableFromAlias(rightCol.getTable().getName());
+
+      if (!leftTable.equals(rightTable)) {
+        // Different tables - this is a join condition
+        joinExpressions.add(expr);
+      } else {
+        // Same table - this is a selection condition
+        selectExpressions.put(
+            leftTable.getName(),
+            mergeExpressions(selectExpressions.get(leftTable.getName()), expr));
+      }
+    } else if (expr.getLeftExpression() instanceof Column) {
+      // Handle Column <> Value case as a selection
+      handleColumnComparison(expr, (Column) expr.getLeftExpression(), expr.getRightExpression());
+    } else if (expr.getRightExpression() instanceof Column) {
+      // Handle Value <> Column case as a selection
+      handleColumnComparison(expr, (Column) expr.getRightExpression(), expr.getLeftExpression());
+    }
+  }
+
+  // Update handleColumnComparison to handle NotEqualsTo
+  private void handleColumnComparison(ComparisonOperator op, Column column, Expression valueExpr) {
+    Table table = getTableFromAlias(column.getTable().getName());
+    selectExpressions.put(
+        table.getName(), mergeExpressions(selectExpressions.get(table.getName()), op));
   }
 }

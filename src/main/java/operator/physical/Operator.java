@@ -82,4 +82,8 @@ public abstract class Operator {
       tw.writeTuple(t.toIntArray());
     }
   }
+
+  public Operator getChild() {
+    throw new UnsupportedOperationException("This operator doesn't support getChild()");
+  }
 }

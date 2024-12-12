@@ -1,5 +1,6 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import common.BulkLoader;
 import common.DBCatalog;
 import common.LogicalPlanBuilder;
 import common.PhysicalPlanBuilder;
@@ -146,8 +147,6 @@ public class P3UnitTests {
       List<String> expectedOutput = readExpectedOutput(idx);
       List<String> actualOutputString =
           actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
-
-      List<String> expectedOutput = readExpectedOutput(idx);
 
       System.out.println("Expected output size: " + expectedOutput.size());
       System.out.println("Actual output size: " + actualOutputString.size());
