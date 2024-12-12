@@ -87,27 +87,15 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
    */
   @Override
   public void visit(LogicalSelectOperator op) {
-    // First check if we can use an index scan
     if (op.getChildren().get(0) instanceof LogicalScanOperator) {
       LogicalScanOperator scanOp = (LogicalScanOperator) op.getChildren().get(0);
       String tableName = resolveTableName(scanOp.getTable().getName());
-
-      // Analyze the selection condition for potential index usage
       SelectionAnalyzer analyzer = findBestIndex(tableName, op.getCondition());
 
       if (analyzer != null && analyzer.hasIndexConditions()) {
-        // Add debug logging here
-        System.out.println(
-            "Index conditions: lowKey="
-                + analyzer.getLowKey()
-                + ", highKey="
-                + analyzer.getHighKey());
-        System.out.println("Remaining conditions: " + analyzer.getRemainingConditions());
-
         // Create an IndexScanOperator
         String indexColumn = analyzer.getIndexedColumn();
         boolean isClustered = isIndexClustered(tableName, indexColumn);
-
         result =
             new IndexScanOperator(
                 new ArrayList<>(scanOp.getSchema()),
@@ -116,21 +104,29 @@ public class PhysicalPlanBuilder implements LogicalOperatorVisitor {
                 isClustered,
                 analyzer.getLowKey(),
                 analyzer.getHighKey(),
-                indexColumn); // Add this parameter
-        // If there are remaining conditions, add a SelectOperator on top
+                indexColumn);
+
+        // If there are remaining conditions, add a SelectOperator
         List<Expression> remainingConditions = analyzer.getRemainingConditions();
         if (!remainingConditions.isEmpty()) {
           Expression remainingExpr = buildAndExpression(remainingConditions);
           result = new SelectOperator(result, remainingExpr, tableAliases);
         }
-        return;
-      }
-    }
 
-    // If we can't use an index, fall back to regular selection
-    op.getChildren().get(0).accept(this);
-    Operator child = result;
-    result = new SelectOperator(child, op.getCondition(), tableAliases);
+        // Always apply original condition
+        result = new SelectOperator(result, op.getCondition(), tableAliases);
+      } else {
+        // If we can't use an index, fall back to regular selection
+        op.getChildren().get(0).accept(this);
+        Operator child = result;
+        result = new SelectOperator(child, op.getCondition(), tableAliases);
+      }
+    } else {
+      // Handle non-scan child operators
+      op.getChildren().get(0).accept(this);
+      Operator child = result;
+      result = new SelectOperator(child, op.getCondition(), tableAliases);
+    }
   }
 
   /** Analyzes selection conditions to find the best index to use */

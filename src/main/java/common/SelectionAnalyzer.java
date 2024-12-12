@@ -23,28 +23,22 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
 
   @Override
   public void visit(AndExpression andExpression) {
-    // Store current state
     List<Expression> tempRemaining = new ArrayList<>(remainingConditions);
     Integer tempLow = lowKey;
     Integer tempHigh = highKey;
 
-    // Process left expression
     andExpression.getLeftExpression().accept(this);
 
-    // Store results from left side
     Integer leftLow = lowKey;
     Integer leftHigh = highKey;
     List<Expression> leftRemaining = new ArrayList<>(remainingConditions);
 
-    // Reset state for right expression
     lowKey = tempLow;
     highKey = tempHigh;
     remainingConditions = new ArrayList<>(tempRemaining);
 
-    // Process right expression
     andExpression.getRightExpression().accept(this);
 
-    // Combine results - take most restrictive bounds
     if (leftLow != null && (lowKey == null || leftLow > lowKey)) {
       lowKey = leftLow;
     }
@@ -83,48 +77,37 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
 
   private void processComparisonOperation(
       ComparisonOperator expr, boolean isLower, boolean inclusive) {
-    System.out.println("Processing comparison: " + expr);
-    System.out.println("Current bounds - low: " + lowKey + ", high: " + highKey);
-
     Expression left = expr.getLeftExpression();
     Expression right = expr.getRightExpression();
 
-    // First determine if and which side is our indexed column
     boolean leftIsIndexed = isIndexedColumn(left);
     boolean rightIsIndexed = isIndexedColumn(right);
 
     if (leftIsIndexed || rightIsIndexed) {
-      // Get the constant value (will be on opposite side from indexed column)
       Integer value = leftIsIndexed ? getValueFromExpression(right) : getValueFromExpression(left);
 
       if (value != null) {
         currentExpressionUsesIndex = true;
-
-        // If column is on right, we need to flip the comparison
         boolean effectiveIsLower = leftIsIndexed ? isLower : !isLower;
 
         if (effectiveIsLower) {
           if (inclusive) {
             if (lowKey == null || value > lowKey) {
               lowKey = value;
-              System.out.println("Updated lowKey to: " + lowKey);
             }
           } else {
             if (lowKey == null || value + 1 > lowKey) {
               lowKey = value + 1;
-              System.out.println("Updated lowKey to: " + lowKey);
             }
           }
         } else {
           if (inclusive) {
             if (highKey == null || value < highKey) {
               highKey = value;
-              System.out.println("Updated highKey to: " + highKey);
             }
           } else {
             if (highKey == null || value - 1 < highKey) {
               highKey = value - 1;
-              System.out.println("Updated highKey to: " + highKey);
             }
           }
         }
@@ -138,7 +121,6 @@ public class SelectionAnalyzer extends ExpressionVisitorAdapter {
     if (expr instanceof Column) {
       Column col = (Column) expr;
       String tableName = col.getTable().getName();
-      // Handle both actual table name and alias
       if (tableName != null && !tableName.equals(indexedTable)) {
         return false;
       }
