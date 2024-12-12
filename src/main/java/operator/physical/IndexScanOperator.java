@@ -27,8 +27,21 @@ public class IndexScanOperator extends Operator {
   private List<int[]> allTuples;
   private int currentTupleIndex;
   private boolean initialized;
-  private final String indexedColumn;
+  private final String indexedColumn; // Add this as a class field
 
+  /**
+   * Constructs an IndexScanOperator for scanning a relation using a B+ tree
+   * index.
+   *
+   * @param outputSchema The schema of the output tuples
+   * @param relationName The name of the relation to scan
+   * @param indexFile    Path to the index file
+   * @param isClustered  Whether the index is clustered
+   * @param lowKey       Lower bound of the range to scan (null for unbounded)
+   * @param highKey      Upper bound of the range to scan (null for unbounded)
+   */
+
+  // Then modify the constructor to take and store the column name
   public IndexScanOperator(
       ArrayList<Column> outputSchema,
       String relationName,
@@ -51,8 +64,13 @@ public class IndexScanOperator extends Operator {
     this.currentTupleIndex = 0;
   }
 
+  /**
+   * Initializes the operator by opening necessary files and performing initial B+
+   * tree traversal.
+   */
   private void initialize() throws IOException {
-    if (initialized) return;
+    if (initialized)
+      return;
 
     // Debug indexing
     System.out.println("Starting index scan with bounds: [" + lowKey + ", " + highKey + "]");
@@ -131,7 +149,7 @@ public class IndexScanOperator extends Operator {
     for (int i = 0; i < numRids; i++) {
       int pageId = buffer.getInt(offset + i * 8);
       int tupleId = buffer.getInt(offset + i * 8 + 4);
-      currentRids.add(new int[] {pageId, tupleId});
+      currentRids.add(new int[] { pageId, tupleId });
       System.out.println("Added RID: (" + pageId + "," + tupleId + ")");
     }
 
@@ -158,7 +176,8 @@ public class IndexScanOperator extends Operator {
     for (int i = 0; i < numRids; i++) {
       int pageId = buffer.getInt(offset + i * 8);
       int tupleId = buffer.getInt(offset + i * 8 + 4);
-      currentRids.add(new int[] {pageId, tupleId});
+      currentRids.add(new int[] { pageId, tupleId });
+      System.out.println("Reading entry key=" + key + ", RID=(" + pageId + "," + tupleId + ")");
     }
     currentRidIndex = 0;
   }
@@ -208,7 +227,8 @@ public class IndexScanOperator extends Operator {
             if (currentTupleIndex < allTuples.size()) {
               Tuple tuple = new Tuple(allTuples.get(currentTupleIndex++));
               int key = tuple.getElementAtIndex(getKeyColumnIndex());
-              if (key > highKey) return null;
+              if (key > highKey)
+                return null;
               return tuple;
             }
             return null;
@@ -253,6 +273,52 @@ public class IndexScanOperator extends Operator {
     return new Tuple(tupleData);
   }
 
+  private boolean readNextEntry() throws IOException {
+    if (buffer.getInt(0) != 0) { // Not a leaf node
+      System.out.println("Not a leaf node - type: " + buffer.getInt(0));
+      return false;
+    }
+
+    int numEntries = buffer.getInt(4);
+    System.out.println("Number of entries in leaf: " + numEntries);
+    if (currentEntryIndex >= numEntries) {
+      System.out.println("No more entries in current leaf");
+      return false;
+    }
+
+    // Calculate offset to current entry
+    int offset = 8;
+    for (int i = 0; i < currentEntryIndex; i++) {
+      int numRids = buffer.getInt(offset + 4);
+      offset += 8 + (numRids * 8); // key + numRids + (rids * 2 ints each)
+    }
+
+    int key = buffer.getInt(offset);
+    System.out.println("Reading entry with key: " + key);
+
+    // Check if we've passed high key
+    if (highKey != null && key > highKey) {
+      System.out.println("Key " + key + " exceeds highKey " + highKey);
+      return false;
+    }
+
+    int numRids = buffer.getInt(offset + 4);
+    offset += 8;
+
+    currentRids.clear();
+    for (int i = 0; i < numRids; i++) {
+      int pageId = buffer.getInt(offset + i * 8);
+      int tupleId = buffer.getInt(offset + i * 8 + 4);
+      currentRids.add(new int[] { pageId, tupleId });
+      System.out.println("Added RID: pageId=" + pageId + ", tupleId=" + tupleId);
+    }
+
+    currentEntryIndex++;
+    currentRidIndex = 0;
+    return true;
+  }
+
+  /** Reads a page from the index file into the buffer. */
   private void readPage(int pageNum) throws IOException {
     buffer.clear();
     indexRAF.seek(pageNum * PAGE_SIZE);

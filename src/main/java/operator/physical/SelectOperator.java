@@ -35,7 +35,6 @@ public class SelectOperator extends Operator {
         return null;
       }
       boolean passes = evaluator.evaluate(whereExpression, nextTuple, getOutputSchema());
-      System.out.println("Condition evaluation: " + passes); // Debug
       if (passes) {
         return nextTuple;
       }

@@ -48,13 +48,13 @@ public class P3UnitTests {
 
   @Disabled
   @ParameterizedTest
-  @ValueSource(ints = {3})
+  @ValueSource(ints = { 1, 3 })
   public void testQueriesWithoutIndexes(int idx) throws Exception {
     runTest(idx, false);
   }
 
   @ParameterizedTest
-  @ValueSource(ints = {1})
+  @ValueSource(ints = { 1, 3 })
   public void testQueriesWithIndexes(int idx) throws Exception {
     buildIndexes();
     runTest(idx, true);
@@ -130,8 +130,7 @@ public class P3UnitTests {
     List<Statement> statements = CCJSqlParserUtil.parseStatements(queries).getStatements();
 
     LogicalPlanBuilder logicalPlanBuilder = new LogicalPlanBuilder();
-    PhysicalPlanBuilder physicalPlanBuilder =
-        new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), INDEX_DIR);
+    PhysicalPlanBuilder physicalPlanBuilder = new PhysicalPlanBuilder(logicalPlanBuilder.getTableAliases(), INDEX_DIR);
 
     Statement statement = statements.get(idx - 1);
     System.out.println("Executing query: " + statement.toString());
@@ -145,8 +144,7 @@ public class P3UnitTests {
       debugPhysicalPlan(physicalPlan, statement);
 
       List<Tuple> actualOutput = HelperMethods.collectAllTuples(physicalPlan);
-      List<String> actualOutputString =
-          actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
+      List<String> actualOutputString = actualOutput.stream().map(Tuple::toString).collect(Collectors.toList());
 
       List<String> expectedOutput = readExpectedOutput(idx);
 

@@ -22,6 +22,7 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   public boolean evaluate(Expression expr, Tuple tuple, List<Column> schema) {
     this.tuple = tuple;
     this.schema = schema;
+
     expr.accept(this);
     return result;
   }
@@ -41,6 +42,8 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
     if (column.getTable() != null) {
       Table table = column.getTable();
       tableAlias = table.getAlias() != null ? table.getAlias().getName() : table.getName();
+    } else {
+      System.out.println("Looking up unqualified column: " + columnName);
     }
 
     int index = getColumnIndex(tableAlias, columnName);
@@ -52,13 +55,13 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
   }
 
   private int getColumnIndex(String tableAlias, String columnName) {
+
     for (int i = 0; i < schema.size(); i++) {
       Column schemaColumn = schema.get(i);
       String schemaColumnName = schemaColumn.getColumnName();
       Table schemaTable = schemaColumn.getTable();
       String schemaTableName = schemaTable.getName();
-      String schemaTableAlias =
-          schemaTable.getAlias() != null ? schemaTable.getAlias().getName() : schemaTableName;
+      String schemaTableAlias = schemaTable.getAlias() != null ? schemaTable.getAlias().getName() : schemaTableName;
 
       if (schemaColumnName.equals(columnName)) {
         if (tableAlias == null || tableAlias.equals(schemaTableAlias)) {
@@ -66,6 +69,7 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
         }
       }
     }
+
     return -1;
   }
 
@@ -129,22 +133,20 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
 
   static Expression pruneWhereCondition(
       Expression whereCondition, List<String> availableTableNames) {
+
     if (whereCondition instanceof AndExpression) {
       AndExpression andExpression = (AndExpression) whereCondition;
-      Expression prunedRight =
-          pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
-      Expression prunedLeft =
-          pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
+      Expression prunedRight = pruneWhereCondition(andExpression.getRightExpression(), availableTableNames);
+      Expression prunedLeft = pruneWhereCondition(andExpression.getLeftExpression(), availableTableNames);
       if (prunedRight == null || prunedLeft == null) {
-        return (prunedRight == null) ? prunedLeft : prunedRight;
+        Expression result = (prunedRight == null) ? prunedLeft : prunedRight;
+        return result;
       }
       return new AndExpression(prunedLeft, prunedRight);
     } else if (whereCondition instanceof ComparisonOperator) {
       ComparisonOperator comparisonOperator = (ComparisonOperator) whereCondition;
-      Expression prunedLeft =
-          pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
-      Expression prunedRight =
-          pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
+      Expression prunedLeft = pruneWhereCondition(comparisonOperator.getLeftExpression(), availableTableNames);
+      Expression prunedRight = pruneWhereCondition(comparisonOperator.getRightExpression(), availableTableNames);
       if (prunedLeft == null || prunedRight == null) {
         return null;
       }
@@ -153,10 +155,12 @@ public class ExpressionEvaluator extends ExpressionVisitorAdapter {
       Table table = column.getTable();
       String tableName = table.getAlias() != null ? table.getAlias().getName() : table.getName();
       boolean available = availableTableNames.contains(tableName);
+
       if (!available) {
         return null;
       }
     }
+
     return whereCondition;
   }
 }

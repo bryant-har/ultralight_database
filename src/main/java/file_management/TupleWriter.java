@@ -7,10 +7,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
-public class TupleWriter {
+public class TupleWriter implements AutoCloseable {
   int PAGE_SIZE = 4096;
   private ByteBuffer buffer;
   private FileChannel fileChannel;
+  private FileOutputStream fileOutputStream;
   private int numTuples;
   private int numTupleAttributes = 3;
   private List<int[]> tuples;
@@ -23,7 +24,7 @@ public class TupleWriter {
     if (!file.exists()) {
       file.createNewFile();
     }
-    FileOutputStream fileOutputStream = new FileOutputStream(file);
+    fileOutputStream = new FileOutputStream(file);
     this.fileChannel = fileOutputStream.getChannel();
     this.buffer = ByteBuffer.allocate(PAGE_SIZE);
     actuallyClearBuffer();
@@ -72,5 +73,6 @@ public class TupleWriter {
     flushPage();
     // Reset position to 0 for subsequent write operations
     fileChannel.close();
+    fileOutputStream.close();
   }
 }

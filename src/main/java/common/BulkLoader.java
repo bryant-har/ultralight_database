@@ -32,6 +32,7 @@ public class BulkLoader {
       while ((line = br.readLine()) != null) {
         String[] parts = line.split("\\s+");
         if (parts.length >= 4) {
+          // Check if this line corresponds to our target index
           String expectedOutputFile = indexInfoFilePath.substring(0, indexInfoFilePath.lastIndexOf("/"))
               + "/indexes/"
               + parts[0]
@@ -107,6 +108,15 @@ public class BulkLoader {
     }
 
     writeHeaderPage(rootAddress, numberOfLeaves);
+
+    // Verify the root address
+    System.out.println(
+        "Built tree with root address: "
+            + rootAddress
+            + ", number of leaves: "
+            + numberOfLeaves
+            + ", order: "
+            + d);
   }
 
   private void validateAndAddEntry(int key, int pageId, int tupleId) {
@@ -121,7 +131,8 @@ public class BulkLoader {
         int numTuples = dataFile.readInt();
 
         if (tupleId >= numTuples) {
-          System.out.println("Invalid RID: tuple " + tupleId + " exceeds tuple count " + numTuples);
+          System.err.println(
+              "Invalid RID: tuple " + tupleId + " exceeds page tuple count " + numTuples);
           return;
         }
 
@@ -138,8 +149,6 @@ public class BulkLoader {
           } else {
             System.out.println("RID already exists for key " + key);
           }
-        } else {
-          System.out.println("Key mismatch: expected " + key + ", found " + actualValue);
         }
       }
     } catch (IOException e) {
@@ -191,6 +200,7 @@ public class BulkLoader {
 
   private void writeSortedRelation() throws IOException {
     String sortedFileName = DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath() + "_sorted";
+    System.out.println("Writing sorted relation to: " + sortedFileName);
 
     try (RandomAccessFile dataFile = new RandomAccessFile(
         DBCatalog.getInstance().getFileForTable(relationName).getAbsolutePath(), "r");
@@ -212,6 +222,9 @@ public class BulkLoader {
           sortedFile.write(tuple);
         }
       }
+
+      System.out.println(
+          "Successfully wrote sorted relation with " + dataEntries.size() + " entries");
     }
   }
 
@@ -282,6 +295,8 @@ public class BulkLoader {
     for (int i = 3; i < PAGE_SIZE / 4; i++) {
       raf.writeInt(0);
     }
+    System.out.println(
+        "Wrote header page: root=" + rootAddress + ", leaves=" + numberOfLeaves + ", order=" + d);
   }
 
   private void serializeNode(TreeNode node, int address) throws IOException {
